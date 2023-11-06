@@ -5,290 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <script src="https://cdn.socket.io/4.6.0/socket.io.min.js" integrity="sha384-c79GN5VsunZvi+Q/WObgk2in0CbZsHnjEqvFxC5DxHn9lTfNce2WW6h2pH6u/kF+" crossorigin="anonymous"></script>
+    <script src="/static/js/common/constants/SocketEvents.js"></script>
+    <script src="/static/js/common/constants/CallState.js"></script>
+    <script src="/static/js/common/constants/CallType.js"></script>
+    <script src="/static/js/common/constants/Constants.js"></script>
+    <script src="/static/js/common/constants/CallElements.js"></script>
+    <script src="/static/js/core/classes/CallEventListener.js"></script>
+    <script src="/static/js/core/classes/User.js"></script>
+    <script src="/static/js/core/classes/CallPayload.js"></script>
+    <script src="/static/js/core/classes/CallClient.js"></script>
     <script>
-        const CallElements = {
-            localVideo: "callclient:local_video_stream",
-            remoteVideo: "callclient:remote_video_stream",
-        }
-
-        const SocketEvents = {
-            SOCKET_DISCONNECTED: "callserver:disconnect",
-            USER_LOGIN: "callserver:user_login",
-            USER_LOGOUT: "callserver:user_logout",
-            USER_CONNECTED: "callserver:user_connected",
-            USER_DISCONNETED: "callserver:user_disconnected",
-            CALL_START: "callserver:call_start",
-            CALL_TIMEDOUT: "callserver:call_timeout",
-            CALL_INCOMING: "callserver:call_incoming",
-            CALL_ACCEPT: "callserver:call_accept",
-            CALL_ACCEPTED: "callserver:call_accept",
-            CALL_REJECT: "callserver:call_reject",
-            CALL_REJECTED: "callserver:call_reject",
-            CALL_SEND_OFFER: "callserver:call_send_offer",
-            CALL_RECEIVE_OFFER: "callserver:call_receive_offer",
-            CALL_SEND_ANSWER: "callserver:call_send_answer",
-            CALL_RECEIVE_ANSWER: "callserver:call_receive_answer",
-            CALL_SEND_CANDIDATE:"callserver:call_send_candidate",
-            CALL_RECEIVE_CANDIDATE:"callserver:call_receive_candidate",
-            CALL_CLIENT_READY: "callserver:call_client_ready",
-            CALL_WEBRTC_READY: "callserver:call_ready",
-            CALL_TOGGLE_MEDIA_DEVICES: "callserver:call_toggle_media_devices",
-            CALL_UPDATE_MEDIA_DEVICES_STATUS: "callserver:call_update_media_devices_status",
-            CALL_SWITCH_TO_VIDEO: "callserver:call_switch_to_video",
-            CALL_SWITCH_TO_VIDEO_ACCEPT: "callserver:call_switch_to_video_accept",
-            CALL_SWITCH_TO_VIDEO_ACCEPTED: "callserver:call_switch_to_video_accepted",
-            CALL_SWITCH_TO_VIDEO_REJECT: "callserver:call_switch_to_video_reject",
-            CALL_SWITCH_TO_VIDEO_REJECTED: "callserver:call_switch_to_video_rejected",
-            CALL_BUSY: "callserver:call_busy",
-            CALL_CHECK_BUSY: "callserver:call_check_busy",
-            CALL_ONGOING: "callserver:call_ongoing",
-            CALL_END: "callserver:call_end",
-            CALL_ENDED: "callserver:call_ended"
-        }
-
-        const CallState = {
-            NONE: -1,
-            RINGING: 0,
-            CONNECTING: 1,
-            CALLING: 2,
-            ENDED: 3,
-            REJECTED: 4,
-            TIMEDOUT: 5,
-            BUSY: 6,
-            ONGOING: 7
-        }
-
-        const CallType = {
-            VIDEO: 1,
-            AUDIO: 0,
-            NONE: -1
-        }
-
-        class User {
-            constructor(config) {
-                this.userId = config.userId;
-                this.userName = config.userName;
-                this.userAvatar = config.userAvatar;
-            }
-        }
-
-        class CallPayload {
-            constructor(config) {
-                this.roomId = config.roomId?config.roomId:-1;
-                this.roomCode = config.roomCode?config.roomCode:"";
-                this.roomUrl = config.roomUrl?config.roomUrl:"";
-                this.callerId = config.callerId?config.callerId:"";
-                this.callerName = config.callerName?config.callerName:"";
-                this.calleeId = config.calleeId?config.calleeId:"";
-                this.calleeName = config.calleeName?config.calleeName:"";
-                this.calleeAvatar = config.calleeAvatar?config.calleeAvatar:"";
-                this.callType = config.callType?config.callType: CallType.NONE;
-            }
-        }
-
-        class CallEventListener {
-            constructor() {
-                this.listeners = [];
-            }
-
-            addListener = (callback) => {
-                this.listeners.push(callback);
-            }
-
-            removeListener = (callback) => {
-                let _index = this.listeners.indexOf(callback);
-                if (_index) this.listeners.splice(_index, 1);
-            } 
-
-            invoke(state) {
-                this.listeners.forEach(callback => callback(state));
-            }
-            
-        }
-
-        class CallClient {
-            constructor(socket) {
-                this.socket = socket;
-                this._callState = CallState.NONE;
-                this._csEvents = new CallEventListener();
-                this.isLoggedIn = false;
-                this.user = null;
-                this.activePayload = null;
-
-                this.registerEvents();
-            }
-
-            get app() {
-                return Application.getInstance();
-            }
-
-            get callState() {
-                return this._callState;
-            }
-
-            set callState(state) {
-                this._callState = state;
-                this._csEvents.invoke(state);
-            }
-
-            addCallStateListener(callback) {
-                this._csEvents.addListener(callback);
-            }
-
-            removeCallStateListener(callback) {
-                this._csEvents.removeListener(callback);
-            }
-
-            registerEvents = () => {
-                this.socket.on(SocketEvents.CALL_INCOMING, this.onCallIncoming);
-                this.socket.on(SocketEvents.CALL_ACCEPTED, this.onCallAccepted);
-                this.socket.on(SocketEvents.CALL_REJECTED, this.onCallRejected);
-                this.socket.on(SocketEvents.CALL_TIMEDOUT, this.onCallTimedOut);
-                this.socket.on(SocketEvents.CALL_BUSY, this.onCallBusy);
-                this.socket.on(SocketEvents.CALL_ONGOING, this.onCallOngoing);
-                this.socket.on(SocketEvents.CALL_END, this.onCallOngoing);
-                this.socket.on(SocketEvents.CALL_RECEIVE_OFFER, this.onReceiveOffer);
-                this.socket.on(SocketEvents.CALL_RECEIVE_ANSWER, this.onReceiveAnswer);
-                this.socket.on(SocketEvents.CALL_WEBRTC_READY, this.onCallReady);
-                this.socket.on(SocketEvents.CALL_RECEIVE_CANDIDATE, this.onReceiveCandidate);
-            }
-
-            onCallIncoming = (payload) => {
-                this.callState = CallState.RINGING;
-                let _payload = new CallPayload(payload);
-                this.activePayload = _payload;
-            }
-
-            onCallAccepted = () => {
-                this.callState = CallState.CONNECTING;
-                this.app.createOffer().then(offer => {
-                    this.sendOffer(offer);
-                })
-            }
-
-            onCallRejected = () => {
-                this.callState = CallState.REJECTED;
-                this.activePayload = null;
-            }
-
-            onCallTimedOut = () => {
-                this.callState = CallState.TIMEDOUT;
-                this.activePayload = null;
-            }
-
-            onCallBusy = () => {
-                this.callState = CallState.BUSY;
-                this.activePayload = null;
-            }
-
-            onCallOngoing = () => {
-                this.callState = CallState.ONGOING;
-                this.activePayload = null;
-            }
-
-            onCallEnded = () => {
-                this.callState = CallState.ENDED;
-                this.activePayload = null;
-            }
-
-            onReceiveOffer = (webrtcOffer) => {
-                this.app.createAnswer(webrtcOffer).then(answer => {
-                    this.sendAnswer(answer);
-                })
-            }
-
-            onReceiveAnswer = (webrtcAnswer) => {
-                this.app.onReceiveAnswer(webrtcAnswer);
-            }
-
-            onReceiveCandidate = (iceCandidate) => {
-                this.app.addIceCandidate(iceCandidate);
-            }
-
-            onCallReady = () => {
-                this.callState = CallState.CALLING;
-            }
-
-            login = (userId) => {
-                this.user = {
-                    userId: userId,
-                    userName: "Nguyen Van B",
-                    userAvatar: "1231323"
-                }
-                this.socket.emit(SocketEvents.USER_LOGIN, userId);
-            }
-
-            createCall = (callee, callType) => {
-                let _callee = new User(callee);
-                let _caller = new User(this.user);
-                let payload = new CallPayload({
-                    roomId: _caller.userId,
-                    callerId: _caller.userId,
-                    callerName: _caller.userName,
-                    calleeId: _callee.userId,
-                    calleeName: _callee.userName,
-                    calleeAvatar: _callee.userAvatar,
-                    callType: callType
-                });
-                this.socket.emit(SocketEvents.CALL_START, payload);
-                this.activePayload = payload;
-                this.callState = CallState.RINGING;
-            }
-
-            acceptCall = () => {
-                if (this.activePayload) {
-                    this.socket.emit(SocketEvents.CALL_ACCEPT, this.activePayload);
-                    this.callState = CallState.CONNECTING;
-                }
-            }
-
-            rejectCall = () => {
-                if (this.activePayload) {
-                    this.socket.emit(SocketEvents.CALL_REJECT, this.activePayload);
-                    this.callState = CallState.REJECTED;
-                }
-                this.activePayload = null;
-            }
-
-            endCall = () => {
-                if (this.activePayload) {
-                    this.socket.emit(SocketEvents.CALL_END, this.activePayload);
-                    this.callState = CallState.ENDED;
-                }
-                this.activePayload = null;
-            }
-
-            sendOffer = (webrtcOffer) => {
-                this.socket.emit(SocketEvents.CALL_SEND_OFFER, webrtcOffer);
-            }
-
-            sendAnswer = (webrtcAnswer) => {
-                this.socket.emit(SocketEvents.CALL_SEND_ANSWER, webrtcAnswer);
-            }
-
-            sendCandidate = (iceCandidate) => {
-                this.socket.emit(SocketEvents.CALL_SEND_CANDIDATE, iceCandidate);
-            }
-
-            markCallAsReady = () => {
-                this.socket.emit(SocketEvents.CALL_CLIENT_READY);
-            }
-
-        }
 
         const { RTCPeerConnection, RTCSessionDescription } = window;
-        var configuration = { 
-         "iceServers": [{ "url": "stun:stun.1.google.com:19302" }] 
-      }; 
-        const videoCallConstraints = {
-            audio: true,
-            video: true
-        };
-        const voiceCallConstraints = {
-            audio: true,
-            video: false
-        };
-
         const socket = io();
 
         socket.onAny((e, d) => console.log(e, d));
@@ -301,10 +29,14 @@
             constructor() {
                 if (Application.instance) throw Error("Can't create more than one instance of Application");
                 this.callClient = new CallClient(socket);
-                this.peerConnection = new RTCPeerConnection(configuration);
                 this.localVideoStream = null;
                 this.remoteVideoStream = null;
 
+                this.peerConnection = new RTCPeerConnection(Constants.WEBRTC_PEER_CONFIGURATION);
+                this.initConnection();
+            }
+
+            initConnection() {
                 this.peerConnection.onnegotiationneeded = e => {
                     if (this.peerConnection.signalingState != "stable") return;
                 }
@@ -317,44 +49,80 @@
                     this.callClient.markCallAsReady();
                 };
 
-                this.initMediaObjects().then(()=>{
-                    console.log("done");
-                })
-
-                this.init();
-                    
-            }
-
-            init = () => {
-                let id = [0,0,0].map(()=>"123456789".charAt(Math.floor(Math.random()*9))).join('');
-                this.callClient.login(id);
-                document.querySelector("#userId").innerHTML = id;
                 this.peerConnection.onicecandidate = (event) => { 
-                    console.log(event);
                     if (event.candidate) { 
                         this.callClient.sendCandidate(event.candidate);
                     } 
                 }
             }
-            
+
+            loginWithToken = (token) => {
+                this.callClient.login(id);
+            }
+
+            loginWithId = (id) => {
+                this.callClient.login(id);
+                document.querySelector("#userId").innerHTML = id;
+            }
 
             initMediaObjects = async () => {
-                this.localVideoStream = await navigator.mediaDevices.getUserMedia(videoCallConstraints);
+                this.localVideoStream = await navigator.mediaDevices.getUserMedia(Constants.VIDEO_CONSTRAINTS);
                 console.log(this.localVideoStream.getTracks());
                 const localVideo = document.getElementById(CallElements.localVideo);
                 localVideo.srcObject = this.localVideoStream;
                 const tracks = this.localVideoStream.getTracks();
                 tracks.forEach(track => {
-                    console.log(track);
                     this.peerConnection.addTrack(track, this.localVideoStream)
                 })
             }
 
+            registerElements = () => {
+                this.callButtons = {
+                    accept: document.querySelector("#"+ CallElements.buttonAcceptCall),
+                    reject: document.querySelector("#"+ CallElements.buttonRejectCall),
+                    start: document.querySelector("#"+ CallElements.buttonStartCall),
+                    end: document.querySelector("#"+ CallElements.buttonEndCall),
+                    toggleMic: document.querySelector("#"+ CallElements.buttonToggleMic),
+                    toggleCamera: document.querySelector("#"+ CallElements.buttonToggleCamera),
+                }
+            }
+
+            registerFunctions = () => {
+                this.callButtons.start.addEventListener("click", ()=>{
+                    let calleeId = document.querySelector("#calleeId").value;
+                    this.callClient.createCall({
+                        userId: calleeId,
+                        userName: "Nguyen Van A",
+                        userAvatar: "123123"
+                    }, CallType.VIDEO);
+                })
+                this.callButtons.accept.addEventListener("click", ()=>{
+                    this.callClient.acceptCall();
+                })
+                this.callButtons.reject.addEventListener("click", ()=>{
+                    this.callClient.rejectCall();
+                })
+                this.callButtons.end.addEventListener("click", ()=>{
+                    this.callClient.endCall();
+                })
+                this.callButtons.toggleMic.addEventListener("click", ()=>{
+                    this.toggleMic();
+                })
+                this.callButtons.toggleCamera.addEventListener("click", ()=>{
+                    this.toggleCamera();
+                })
+            }
+
+            hideElement = (elem) => {
+                elem.classList.add("hidden");
+            }
+
+            showElement = (elem) => {
+                elem.classList.remove("hidden");
+            }
+
             createOffer = async () => {
-                const offer = await this.peerConnection.createOffer({
-                    'offerToReceiveAudio': true,
-                    'offerToReceiveVideo': true    
-                });
+                const offer = await this.peerConnection.createOffer();
                 console.log("createOffer", offer);
                 await this.peerConnection.setLocalDescription(new RTCSessionDescription(offer));
                 return offer;
@@ -378,42 +146,123 @@
             addIceCandidate = async (iceCandidate) => {
                 this.peerConnection.addIceCandidate(new RTCIceCandidate(iceCandidate));
             }
+
+            resetCall = () => {
+                const remoteVideo = document.getElementById(CallElements.remoteVideo);
+                if (remoteVideo) {
+                    remoteVideo.srcObject = null;
+                }
+            }
+
+            changeCameraStatus(enabled) {
+                const tracks = this.localVideoStream.getVideoTracks();
+                tracks.forEach(track => {
+                    track.enabled = enabled;
+                });
+            }
+
+            changeMicStatus(enabled) {
+                const tracks = this.localVideoStream.getAudioTracks();
+                tracks.forEach(track => {
+                    track.enabled = enabled;
+                })
+            }
+
+            toggleCamera() {
+                const enabled = !this.callClient.videoStatus;
+                this.callClient.changeCameraStatus(enabled);
+            }
+
+            toggleMic() {
+                const enabled = !this.callClient.audioStatus;
+                this.callClient.changeMicStatus(enabled);
+            }
         }
 
         window.onload = () => {
+            const URL_PARAMS = new URLSearchParams(window.location.search);
+            const CALLEE_ID = URL_PARAMS.get("calleeId");
+            const USER_ID = URL_PARAMS.get("userId");
+            const CALL_TYPE = URL_PARAMS.get("callType");
+            const JOIN_AS = URL_PARAMS.get("joinAs");
+            const ACCESS_TOKEN = URL_PARAMS.get("token");
+
             Application.instance = new Application();
             let app = Application.getInstance();
+            app.registerElements();
             app.callClient.addCallStateListener((state) => {
+                if (state == CallState.CALLING||state == CallState.CONNECTING) {
+                    app.hideElement(app.callButtons.accept);
+                    app.hideElement(app.callButtons.reject);
+                    app.showElement(app.callButtons.end);
+                } else {
+                    app.showElement(app.callButtons.accept);
+                    app.showElement(app.callButtons.reject);
+                    app.hideElement(app.callButtons.end);
+                }
                 console.log("callState", state);
             })
-            document.querySelector("#callStart").addEventListener("click", ()=>{
-                let calleeId = document.querySelector("#calleeId").value;
-                app.callClient.createCall({
-                    userId: calleeId,
-                    userName: "Nguyen Van A",
-                    userAvatar: "123123"
-                }, CallType.VIDEO);
-            })
-            document.querySelector("#callAccept").addEventListener("click", ()=>{
-                app.callClient.acceptCall();
-            })
-            document.querySelector("#callReject").addEventListener("click", ()=>{
-                app.callClient.rejectCall();
+
+            app.initMediaObjects().then(()=>{
+                app.loginWithId(USER_ID);
+                app.registerFunctions();
             })
         }
     </script>
+    <style>
+        * {
+            margin: 0px;
+        }
 
+        .hidden  {
+            display: none;
+        }
+
+        .callarea {
+            .callarea__video {
+                position: relative;
+                width: 50vw;
+                height: 50vh;
+                border: 1px solid black;
+
+                .callarea__video__remote {
+                    position: absolute;
+                    top: 0px;
+                    left: 0px;
+                    width: 100%;
+                    height: 100%;
+                }
+                .callarea__video__local {
+                    position: absolute;
+                    bottom: 0px;
+                    right: 0px;
+                    width: 25%;
+                    height: 25%;
+                }
+            }
+        }
+        
+    </style>
 
 </head>
 <body>
+    <section class="main">
+        <div class="callarea">
+            <div class="callarea__video">
+                <video class="callarea__video__remote" id="callclient__remote_video_stream" autoplay muted></video>
+                <video class="callarea__video__local" id="callclient__local_video_stream" autoplay muted></video>
+            </div>
+        </div>
+    </section>
     <div>
-        <video width="320" height="240" id="callclient:local_video_stream" autoplay muted></video>
-        <video width="320" height="240" id="callclient:remote_video_stream" autoplay muted></video>
         <p id="userId"></p>
         <input id="calleeId" type="text">
-        <button id="callStart">Call</button>
-        <button id="callAccept">Accept</button>
-        <button id="callReject">Reject</button>
+        <button id="callclient__button_start_call">Call</button>
+        <button id="callclient__button_accept_call">Accept</button>
+        <button id="callclient__button_reject_call">Reject</button>
+        <button id="callclient__button_end_call" class="hidden">End call</button>
+        <button id="callclient__button_toggle_camera">Toggle camera</button>
+        <button id="callclient__button_toggle_mic">Toggle mic</button>
     </div>
 </body>
 </html>
