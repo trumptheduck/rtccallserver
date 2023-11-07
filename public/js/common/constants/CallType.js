@@ -1,6 +1,6 @@
 const CallType = {
     VIDEO: 1,
-    AUDIO: 0,
+    AUDIO: 2,
     NONE: -1
 }
 

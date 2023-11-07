@@ -80,7 +80,8 @@
                 this.callButtons = {
                     accept: document.querySelector("#"+ CallElements.buttonAcceptCall),
                     reject: document.querySelector("#"+ CallElements.buttonRejectCall),
-                    start: document.querySelector("#"+ CallElements.buttonStartCall),
+                    startVideo: document.querySelector("#"+ CallElements.buttonStartVideoCall),
+                    startVoice: document.querySelector("#"+ CallElements.buttonStartVoiceCall),
                     end: document.querySelector("#"+ CallElements.buttonEndCall),
                     toggleMic: document.querySelector("#"+ CallElements.buttonToggleMic),
                     toggleCamera: document.querySelector("#"+ CallElements.buttonToggleCamera),
@@ -88,13 +89,21 @@
             }
 
             registerFunctions = () => {
-                this.callButtons.start.addEventListener("click", ()=>{
+                this.callButtons.startVideo.addEventListener("click", ()=>{
                     let calleeId = document.querySelector("#calleeId").value;
                     this.callClient.createCall({
                         userId: calleeId,
                         userName: "Nguyen Van A",
                         userAvatar: "123123"
                     }, CallType.VIDEO);
+                })
+                this.callButtons.startVoice.addEventListener("click", ()=>{
+                    let calleeId = document.querySelector("#calleeId").value;
+                    this.callClient.createCall({
+                        userId: calleeId,
+                        userName: "Nguyen Van A",
+                        userAvatar: "123123"
+                    }, CallType.AUDIO);
                 })
                 this.callButtons.accept.addEventListener("click", ()=>{
                     this.callClient.acceptCall();
@@ -184,7 +193,7 @@
             const CALLEE_ID = URL_PARAMS.get("calleeId");
             const USER_ID = URL_PARAMS.get("userId");
             const CALL_TYPE = URL_PARAMS.get("callType");
-            const JOIN_AS = URL_PARAMS.get("joinAs");
+            const ACCEPT_INCOMING = URL_PARAMS.get("accept");
             const ACCESS_TOKEN = URL_PARAMS.get("token");
 
             Application.instance = new Application();
@@ -205,6 +214,17 @@
 
             app.initMediaObjects().then(()=>{
                 app.loginWithId(USER_ID);
+                console.log("SDSD", ACCEPT_INCOMING);
+                if (CALLEE_ID) {
+                    console.log(CALLEE_ID);
+                    app.callClient.createCall({
+                        userId: CALLEE_ID,
+                        userName: "Nguyen Van A",
+                        userAvatar: "123123"
+                    }, CALL_TYPE?CALL_TYPE:CallType.VIDEO);
+                } else if (ACCEPT_INCOMING&&ACCEPT_INCOMING == 1) {
+                   app.callClient.acceptNextCall();
+                }
                 app.registerFunctions();
             })
         }
@@ -257,7 +277,8 @@
     <div>
         <p id="userId"></p>
         <input id="calleeId" type="text">
-        <button id="callclient__button_start_call">Call</button>
+        <button id="callclient__button_start_video_call">Video Call</button>
+        <button id="callclient__button_start_voice_call">Voice Call</button>
         <button id="callclient__button_accept_call">Accept</button>
         <button id="callclient__button_reject_call">Reject</button>
         <button id="callclient__button_end_call" class="hidden">End call</button>

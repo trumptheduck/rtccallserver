@@ -8,6 +8,7 @@ class CallClient {
         this.activePayload = null;
         this.videoStatus = true;
         this.audioStatus = true;
+        this.incomingCallAccepted = false;
 
         this.registerEvents();
     }
@@ -52,14 +53,18 @@ class CallClient {
         this.callState = CallState.RINGING;
         let _payload = new CallPayload(payload);
         this.activePayload = _payload;
-        setTimeout(()=>{
-            if (confirm("You have an incoming call. Do you want to accept?")) {
-                this.acceptCall();
-            } else {
-                this.rejectCall();
-            }
-        });
-        
+        if (this.incomingCallAccepted) {
+            this.acceptCall();
+            this.incomingCallAccepted = false;
+        } else {
+            setTimeout(()=>{
+                if (confirm("You have an incoming call. Do you want to accept?")) {
+                    this.acceptCall();
+                } else {
+                    this.rejectCall();
+                }
+            });
+        }
     }
 
     onCallAccepted = () => {
@@ -147,13 +152,20 @@ class CallClient {
         this.socket.emit(SocketEvents.CALL_START, payload);
         this.activePayload = payload;
         this.callState = CallState.RINGING;
+        this.setCallType(callType);
     }
 
     acceptCall = () => {
         if (this.activePayload) {
             this.socket.emit(SocketEvents.CALL_ACCEPT, this.activePayload);
             this.callState = CallState.CONNECTING;
+            console.log(this.activePayload);
+            this.setCallType(this.activePayload.callType);
         }
+    }
+
+    acceptNextCall = () => {
+        this.incomingCallAccepted = true;
     }
 
     rejectCall = () => {
@@ -207,6 +219,15 @@ class CallClient {
             audio: this.audioStatus,
             video: this.videoStatus
         });
+    }
+
+    setCallType(type) {
+        console.log("calltype", type);
+        if (type == CallType.VIDEO) {
+            this.changeCameraStatus(true);
+        } else if (type == CallType.AUDIO) {
+            this.changeCameraStatus(false);
+        }
     }
 
 }
