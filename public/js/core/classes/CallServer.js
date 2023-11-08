@@ -160,7 +160,10 @@ class CallServer {
     emitToUser(socket, userId, event, ...payload) {
         try {
             const user = this.users.get(userId);
-            if (user) user.traverseSockets((_, sid) => {socket.to(sid).emit(event, ...payload)});
+            if (user) user.traverseSockets((_, sid) => {
+                this.log("Receiver", sid, event);
+                socket.to(sid).emit(event, ...payload)
+            });
             this.log("Emitted:", event, " | ", socket.id, " | ", userId);
         } catch (err) {
             this.logError("emitToUser", err);

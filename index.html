@@ -17,7 +17,21 @@
     <script>
 
         const { RTCPeerConnection, RTCSessionDescription } = window;
-        const socket = io();
+        const socket = io('https://localhost',
+        {
+            'transports': ['websocket'],
+            'autoConnect': true,
+            'reconnectionDelay': 500,
+            'reconnectionDelayMax': 1000,
+            'randomizationFactor': 0,
+            'reconnection': true,
+            'timeout': 30000,
+            'extraHeaders': {
+            'Connection': 'Upgrade',
+            'Upgrade': 'websocket',
+            'secure': true,
+            },
+        });
 
         socket.onAny((e, d) => console.log(e, d));
 
