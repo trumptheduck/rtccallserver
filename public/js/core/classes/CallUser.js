@@ -164,7 +164,6 @@ class CallUser {
 
     onCallRejected = () => {
         try {
-            this.resetCallInfo();
             clearTimeout(this.waitingTimer);
             this.log("Call rejected")
             if (this.activeSocket) {
@@ -178,6 +177,7 @@ class CallUser {
                 })
             }
             this.leaveCurrentRoom();
+            this.resetCallInfo();
         } catch (err) {
             this.logError("onCallRejected", err);
         }
@@ -185,7 +185,6 @@ class CallUser {
 
     onCallEnded = () => {
         try {
-            this.resetCallInfo();
             this.log("Call ended");
             if (this.activeSocket) {
                 const _callSocket = this.sockets.get(this.activeSocket);
@@ -197,8 +196,8 @@ class CallUser {
                     _callSocket.socket.emit(SocketEvents.CALL_ENDED);
                 })
             }
-            this.resetCallInfo();
             this.leaveCurrentRoom();
+            this.resetCallInfo();
         } catch (err) {
             this.logError("onCallEnded", err);
         }
@@ -206,7 +205,6 @@ class CallUser {
 
     onCallTimedOut = () => {
         try {
-            this.resetCallInfo();
             clearTimeout(this.waitingTimer);
             this.log("Call timed out");
             if (this.activeSocket) {
@@ -219,8 +217,8 @@ class CallUser {
                     _callSocket.socket.emit(SocketEvents.CALL_TIMEDOUT);
                 })
             }
-            
             this.leaveCurrentRoom();
+            this.resetCallInfo();
         } catch (err) {
             this.logError("onCallTimedOut", err);
         }
@@ -228,7 +226,6 @@ class CallUser {
 
     onRoomMemberDisconnect = () => {
         try {
-            this.resetCallInfo();
             if (this.activeSocket) {
                 const _callSocket = this.sockets.get(this.activeSocket);
                 if (_callSocket) {
@@ -240,6 +237,7 @@ class CallUser {
                 })
             }
             this.leaveCurrentRoom();
+            this.resetCallInfo();
         } catch (err) {
             this.logError("onRoomMemberDisconnect", err);
         }
@@ -304,6 +302,7 @@ class CallUser {
             this.isCallReady = false;
             this.activeSocket = null;
             this.callType = CallType.NONE;
+            this.incomingCall = null;
 
             this.log("Resetting call info...");
         } catch (err) {

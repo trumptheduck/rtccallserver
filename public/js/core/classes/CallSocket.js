@@ -151,14 +151,15 @@ class CallSocket {
     }
 
     rejectCall = (payload) => {
+        console.log(payload);
         try {
             if (!this.user.inCall) return;
-            this.user.resetCallInfo();
             let _payload = new CallPayload(payload);
             let roomId = _payload.roomId;
     
             const _room = this.callServer.getRoom(roomId)
             if (_room) _room.onCallRejected();
+            this.user.resetCallInfo();
             this.log("Reject call from user:", _payload.callerId);
         } catch (err) {
             this.logError("rejectCall", err);
@@ -237,12 +238,12 @@ class CallSocket {
     callTimeoutCallback = (calleeId) => {
         try {
             return () => {
-                this.user.resetCallInfo();
                 if (this.user.room)
                     this.user.room.onCallTimedOut(this.socket.id);
                 this.callServer.emitToUser(this.socket, calleeId, SocketEvents.CALL_TIMEDOUT);
                 let callee = this.callServer.getUser(calleeId);
                 if (callee) callee.onCallTimedOut();
+                this.user.resetCallInfo();
                 this.log("Call timed out");
             }
         } catch (err) {
