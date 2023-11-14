@@ -1,10 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
-    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js" integrity="sha384-c79GN5VsunZvi+Q/WObgk2in0CbZsHnjEqvFxC5DxHn9lTfNce2WW6h2pH6u/kF+" crossorigin="anonymous"></script>
+    <script
+      src="https://cdn.socket.io/4.6.0/socket.io.min.js"
+      integrity="sha384-c79GN5VsunZvi+Q/WObgk2in0CbZsHnjEqvFxC5DxHn9lTfNce2WW6h2pH6u/kF+"
+      crossorigin="anonymous"
+    ></script>
     <script src="/static/js/common/constants/SocketEvents.js"></script>
     <script src="/static/js/common/constants/CallState.js"></script>
     <script src="/static/js/common/constants/CallType.js"></script>
@@ -15,289 +19,526 @@
     <script src="/static/js/core/classes/CallPayload.js"></script>
     <script src="/static/js/core/classes/CallClient.js"></script>
     <script>
+      const { RTCPeerConnection, RTCSessionDescription } = window;
+      const socket = io("https://localhost", {
+        transports: ["websocket"],
+        autoConnect: true,
+        reconnectionDelay: 500,
+        reconnectionDelayMax: 1000,
+        randomizationFactor: 0,
+        reconnection: true,
+        timeout: 30000,
+        extraHeaders: {
+          Connection: "Upgrade",
+          Upgrade: "websocket",
+          secure: true,
+        },
+      });
 
-        const { RTCPeerConnection, RTCSessionDescription } = window;
-        const socket = io('https://localhost',
-        {
-            'transports': ['websocket'],
-            'autoConnect': true,
-            'reconnectionDelay': 500,
-            'reconnectionDelayMax': 1000,
-            'randomizationFactor': 0,
-            'reconnection': true,
-            'timeout': 30000,
-            'extraHeaders': {
-            'Connection': 'Upgrade',
-            'Upgrade': 'websocket',
-            'secure': true,
-            },
+      socket.onAny((e, d) => console.log(e, d));
+
+      class Application {
+        static instance = null;
+        static getInstance = () => {
+          return Application.instance;
+        };
+        constructor() {
+          if (Application.instance)
+            throw Error("Can't create more than one instance of Application");
+          this.callClient = new CallClient(socket);
+          this.localVideoStream = null;
+          this.remoteVideoStream = null;
+
+          this.peerConnection = new RTCPeerConnection(
+            Constants.WEBRTC_PEER_CONFIGURATION
+          );
+          this.initConnection();
+        }
+
+        initConnection() {
+          this.peerConnection.onnegotiationneeded = (e) => {
+            if (this.peerConnection.signalingState != "stable") return;
+          };
+
+          this.peerConnection.ontrack = (event) => {
+            const remoteVideo = document.getElementById(
+              CallElements.remoteVideo
+            );
+            if (remoteVideo) {
+              remoteVideo.srcObject = event.streams[0];
+            }
+            this.callClient.markCallAsReady();
+          };
+
+          this.peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+              this.callClient.sendCandidate(event.candidate);
+            }
+          };
+        }
+
+        loginWithToken = (token) => {
+          this.callClient.login(id);
+        };
+
+        loginWithId = (id) => {
+          this.callClient.login(id);
+          document.querySelector("#userId").innerHTML = id;
+        };
+
+        initMediaObjects = async () => {
+          this.localVideoStream = await navigator.mediaDevices.getUserMedia(
+            Constants.VIDEO_CONSTRAINTS
+          );
+          console.log(this.localVideoStream.getTracks());
+          const localVideo = document.getElementById(CallElements.localVideo);
+          localVideo.srcObject = this.localVideoStream;
+          const tracks = this.localVideoStream.getTracks();
+          tracks.forEach((track) => {
+            this.peerConnection.addTrack(track, this.localVideoStream);
+          });
+        };
+
+        registerElements = () => {
+          this.callButtons = {
+            accept: document.querySelector("#" + CallElements.buttonAcceptCall),
+            reject: document.querySelector("#" + CallElements.buttonRejectCall),
+            startVideo: document.querySelector(
+              "#" + CallElements.buttonStartVideoCall
+            ),
+            startVoice: document.querySelector(
+              "#" + CallElements.buttonStartVoiceCall
+            ),
+            end: document.querySelector("#" + CallElements.buttonEndCall),
+            toggleMic: document.querySelector(
+              "#" + CallElements.buttonToggleMic
+            ),
+            toggleCamera: document.querySelector(
+              "#" + CallElements.buttonToggleCamera
+            ),
+          };
+        };
+
+        registerFunctions = () => {
+          this.callButtons.startVideo.addEventListener("click", () => {
+            let calleeId = document.querySelector("#calleeId").value;
+            this.callClient.createCall(
+              {
+                userId: calleeId,
+                userName: "Nguyen Van A",
+                userAvatar: "123123",
+              },
+              CallType.VIDEO
+            );
+          });
+          this.callButtons.startVoice.addEventListener("click", () => {
+            let calleeId = document.querySelector("#calleeId").value;
+            this.callClient.createCall(
+              {
+                userId: calleeId,
+                userName: "Nguyen Van A",
+                userAvatar: "123123",
+              },
+              CallType.AUDIO
+            );
+          });
+          this.callButtons.accept.addEventListener("click", () => {
+            this.callClient.acceptCall();
+          });
+          this.callButtons.reject.addEventListener("click", () => {
+            this.callClient.rejectCall();
+          });
+          this.callButtons.end.addEventListener("click", () => {
+            this.callClient.endCall();
+          });
+          this.callButtons.toggleMic.addEventListener("click", () => {
+            this.toggleMic();
+          });
+          this.callButtons.toggleCamera.addEventListener("click", () => {
+            this.toggleCamera();
+          });
+        };
+
+        hideElement = (elem) => {
+          elem.classList.add("hidden");
+        };
+
+        showElement = (elem) => {
+          elem.classList.remove("hidden");
+        };
+
+        createOffer = async () => {
+          const offer = await this.peerConnection.createOffer();
+          console.log("createOffer", offer);
+          await this.peerConnection.setLocalDescription(
+            new RTCSessionDescription(offer)
+          );
+          return offer;
+        };
+
+        createAnswer = async (webrtcOffer) => {
+          console.log("createAnswer", webrtcOffer);
+          await this.peerConnection.setRemoteDescription(
+            new RTCSessionDescription(webrtcOffer)
+          );
+          const answer = await this.peerConnection.createAnswer();
+          await this.peerConnection.setLocalDescription(
+            new RTCSessionDescription(answer)
+          );
+          return answer;
+        };
+
+        onReceiveAnswer = async (answer) => {
+          console.log("onReceiveAnswer", answer);
+          await this.peerConnection.setRemoteDescription(
+            new RTCSessionDescription(answer)
+          );
+        };
+
+        addIceCandidate = async (iceCandidate) => {
+          this.peerConnection.addIceCandidate(
+            new RTCIceCandidate(iceCandidate)
+          );
+        };
+
+        resetCall = () => {
+          const remoteVideo = document.getElementById(CallElements.remoteVideo);
+          if (remoteVideo) {
+            remoteVideo.srcObject = null;
+          }
+        };
+
+        changeCameraStatus(enabled) {
+          const tracks = this.localVideoStream.getVideoTracks();
+          tracks.forEach((track) => {
+            track.enabled = enabled;
+          });
+        }
+
+        changeMicStatus(enabled) {
+          const tracks = this.localVideoStream.getAudioTracks();
+          tracks.forEach((track) => {
+            track.enabled = enabled;
+          });
+        }
+
+        toggleCamera() {
+          const enabled = !this.callClient.videoStatus;
+          this.callClient.changeCameraStatus(enabled);
+        }
+
+        toggleMic() {
+          const enabled = !this.callClient.audioStatus;
+          this.callClient.changeMicStatus(enabled);
+        }
+      }
+
+      window.onload = () => {
+        const URL_PARAMS = new URLSearchParams(window.location.search);
+        const CALLEE_ID = URL_PARAMS.get("calleeId");
+        const USER_ID = URL_PARAMS.get("userId");
+        const CALL_TYPE = URL_PARAMS.get("callType");
+        const ACCEPT_INCOMING = URL_PARAMS.get("accept");
+        const ACCESS_TOKEN = URL_PARAMS.get("token");
+
+        Application.instance = new Application();
+        let app = Application.getInstance();
+        app.registerElements();
+        app.callClient.addCallStateListener((state) => {
+          if (state == CallState.CALLING || state == CallState.CONNECTING) {
+            app.hideElement(app.callButtons.accept);
+            app.hideElement(app.callButtons.reject);
+            app.showElement(app.callButtons.end);
+          } else {
+            app.showElement(app.callButtons.accept);
+            app.showElement(app.callButtons.reject);
+            app.hideElement(app.callButtons.end);
+          }
+          console.log("callState", state);
         });
 
-        socket.onAny((e, d) => console.log(e, d));
-
-        class Application {
-            static instance = null;
-            static getInstance = () => {
-                return Application.instance;
-            }
-            constructor() {
-                if (Application.instance) throw Error("Can't create more than one instance of Application");
-                this.callClient = new CallClient(socket);
-                this.localVideoStream = null;
-                this.remoteVideoStream = null;
-
-                this.peerConnection = new RTCPeerConnection(Constants.WEBRTC_PEER_CONFIGURATION);
-                this.initConnection();
-            }
-
-            initConnection() {
-                this.peerConnection.onnegotiationneeded = e => {
-                    if (this.peerConnection.signalingState != "stable") return;
-                }
-                
-                this.peerConnection.ontrack = (event) => {
-                    const remoteVideo = document.getElementById(CallElements.remoteVideo);
-                    if (remoteVideo) {
-                        remoteVideo.srcObject = event.streams[0];
-                    }
-                    this.callClient.markCallAsReady();
-                };
-
-                this.peerConnection.onicecandidate = (event) => { 
-                    if (event.candidate) { 
-                        this.callClient.sendCandidate(event.candidate);
-                    } 
-                }
-            }
-
-            loginWithToken = (token) => {
-                this.callClient.login(id);
-            }
-
-            loginWithId = (id) => {
-                this.callClient.login(id);
-                document.querySelector("#userId").innerHTML = id;
-            }
-
-            initMediaObjects = async () => {
-                this.localVideoStream = await navigator.mediaDevices.getUserMedia(Constants.VIDEO_CONSTRAINTS);
-                console.log(this.localVideoStream.getTracks());
-                const localVideo = document.getElementById(CallElements.localVideo);
-                localVideo.srcObject = this.localVideoStream;
-                const tracks = this.localVideoStream.getTracks();
-                tracks.forEach(track => {
-                    this.peerConnection.addTrack(track, this.localVideoStream)
-                })
-            }
-
-            registerElements = () => {
-                this.callButtons = {
-                    accept: document.querySelector("#"+ CallElements.buttonAcceptCall),
-                    reject: document.querySelector("#"+ CallElements.buttonRejectCall),
-                    startVideo: document.querySelector("#"+ CallElements.buttonStartVideoCall),
-                    startVoice: document.querySelector("#"+ CallElements.buttonStartVoiceCall),
-                    end: document.querySelector("#"+ CallElements.buttonEndCall),
-                    toggleMic: document.querySelector("#"+ CallElements.buttonToggleMic),
-                    toggleCamera: document.querySelector("#"+ CallElements.buttonToggleCamera),
-                }
-            }
-
-            registerFunctions = () => {
-                this.callButtons.startVideo.addEventListener("click", ()=>{
-                    let calleeId = document.querySelector("#calleeId").value;
-                    this.callClient.createCall({
-                        userId: calleeId,
-                        userName: "Nguyen Van A",
-                        userAvatar: "123123"
-                    }, CallType.VIDEO);
-                })
-                this.callButtons.startVoice.addEventListener("click", ()=>{
-                    let calleeId = document.querySelector("#calleeId").value;
-                    this.callClient.createCall({
-                        userId: calleeId,
-                        userName: "Nguyen Van A",
-                        userAvatar: "123123"
-                    }, CallType.AUDIO);
-                })
-                this.callButtons.accept.addEventListener("click", ()=>{
-                    this.callClient.acceptCall();
-                })
-                this.callButtons.reject.addEventListener("click", ()=>{
-                    this.callClient.rejectCall();
-                })
-                this.callButtons.end.addEventListener("click", ()=>{
-                    this.callClient.endCall();
-                })
-                this.callButtons.toggleMic.addEventListener("click", ()=>{
-                    this.toggleMic();
-                })
-                this.callButtons.toggleCamera.addEventListener("click", ()=>{
-                    this.toggleCamera();
-                })
-            }
-
-            hideElement = (elem) => {
-                elem.classList.add("hidden");
-            }
-
-            showElement = (elem) => {
-                elem.classList.remove("hidden");
-            }
-
-            createOffer = async () => {
-                const offer = await this.peerConnection.createOffer();
-                console.log("createOffer", offer);
-                await this.peerConnection.setLocalDescription(new RTCSessionDescription(offer));
-                return offer;
-            }
-
-            createAnswer = async (webrtcOffer) => {
-                console.log("createAnswer", webrtcOffer);
-                await this.peerConnection.setRemoteDescription(
-                    new RTCSessionDescription(webrtcOffer)
-                );
-                const answer = await this.peerConnection.createAnswer();
-                await this.peerConnection.setLocalDescription(new RTCSessionDescription(answer));
-                return answer;
-            }
-
-            onReceiveAnswer = async (answer) => {
-                console.log("onReceiveAnswer", answer);
-                await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-            }
-
-            addIceCandidate = async (iceCandidate) => {
-                this.peerConnection.addIceCandidate(new RTCIceCandidate(iceCandidate));
-            }
-
-            resetCall = () => {
-                const remoteVideo = document.getElementById(CallElements.remoteVideo);
-                if (remoteVideo) {
-                    remoteVideo.srcObject = null;
-                }
-            }
-
-            changeCameraStatus(enabled) {
-                const tracks = this.localVideoStream.getVideoTracks();
-                tracks.forEach(track => {
-                    track.enabled = enabled;
-                });
-            }
-
-            changeMicStatus(enabled) {
-                const tracks = this.localVideoStream.getAudioTracks();
-                tracks.forEach(track => {
-                    track.enabled = enabled;
-                })
-            }
-
-            toggleCamera() {
-                const enabled = !this.callClient.videoStatus;
-                this.callClient.changeCameraStatus(enabled);
-            }
-
-            toggleMic() {
-                const enabled = !this.callClient.audioStatus;
-                this.callClient.changeMicStatus(enabled);
-            }
-        }
-
-        window.onload = () => {
-            const URL_PARAMS = new URLSearchParams(window.location.search);
-            const CALLEE_ID = URL_PARAMS.get("calleeId");
-            const USER_ID = URL_PARAMS.get("userId");
-            const CALL_TYPE = URL_PARAMS.get("callType");
-            const ACCEPT_INCOMING = URL_PARAMS.get("accept");
-            const ACCESS_TOKEN = URL_PARAMS.get("token");
-
-            Application.instance = new Application();
-            let app = Application.getInstance();
-            app.registerElements();
-            app.callClient.addCallStateListener((state) => {
-                if (state == CallState.CALLING||state == CallState.CONNECTING) {
-                    app.hideElement(app.callButtons.accept);
-                    app.hideElement(app.callButtons.reject);
-                    app.showElement(app.callButtons.end);
-                } else {
-                    app.showElement(app.callButtons.accept);
-                    app.showElement(app.callButtons.reject);
-                    app.hideElement(app.callButtons.end);
-                }
-                console.log("callState", state);
-            })
-
-            app.initMediaObjects().then(()=>{
-                app.loginWithId(USER_ID);
-                console.log("SDSD", ACCEPT_INCOMING);
-                if (CALLEE_ID) {
-                    console.log(CALLEE_ID);
-                    app.callClient.createCall({
-                        userId: CALLEE_ID,
-                        userName: "Nguyen Van A",
-                        userAvatar: "123123"
-                    }, CALL_TYPE?CALL_TYPE:CallType.VIDEO);
-                } else if (ACCEPT_INCOMING&&ACCEPT_INCOMING == 1) {
-                   app.callClient.acceptNextCall();
-                }
-                app.registerFunctions();
-            })
-        }
+        app.initMediaObjects().then(() => {
+          app.loginWithId(USER_ID);
+          console.log("SDSD", ACCEPT_INCOMING);
+          if (CALLEE_ID) {
+            console.log(CALLEE_ID);
+            app.callClient.createCall(
+              {
+                userId: CALLEE_ID,
+                userName: "Nguyen Van A",
+                userAvatar: "123123",
+              },
+              CALL_TYPE ? CALL_TYPE : CallType.VIDEO
+            );
+          } else if (ACCEPT_INCOMING && ACCEPT_INCOMING == 1) {
+            app.callClient.acceptNextCall();
+          }
+          app.registerFunctions();
+        });
+      };
     </script>
-    <style>
-        * {
-            margin: 0px;
-        }
+    <link rel="stylesheet" type="text/css" href="/static/css/styles.css" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="main">
+      <div class="callarea">
+        <div class="callarea_content">
+          <div class="callvideo">
+            <div class="people">
+              <div class="peo_recieve_container">
+                <video
+                  class="peo_receive_video"
+                  id="callclient__remote_video_stream"
+                  autoplay
+                  muted
+                ></video>
+                <div class="image_background">
+                  <img
+                    id="background"
+                    src="/static/image/naruto.jpg"
+                    alt="image_background"
+                  />
+                  <div class="image_avatar">
+                    <img
+                      id="avatar"
+                      src="/static/image/naruto.jpg"
+                      alt="avatar"
+                    />
+                  </div>
+                  <span class="status_call">Đang kết nối ...</span>
+                </div>
+                <div class="peo_receive_name">
+                  <span class="name">Phạm Quang Minh</span>
+                </div>
+              </div>
 
-        .hidden  {
-            display: none;
-        }
-
-        .callarea {
-            .callarea__video {
-                position: relative;
-                width: 50vw;
-                height: 50vh;
-                border: 1px solid black;
-
-                .callarea__video__remote {
-                    position: absolute;
-                    top: 0px;
-                    left: 0px;
-                    width: 100%;
-                    height: 100%;
-                }
-                .callarea__video__local {
-                    position: absolute;
-                    bottom: 0px;
-                    right: 0px;
-                    width: 25%;
-                    height: 25%;
-                }
-            }
-        }
-        
-    </style>
-
-</head>
-<body>
-    <section class="main">
-        <div class="callarea">
-            <div class="callarea__video">
-                <video class="callarea__video__remote" id="callclient__remote_video_stream" autoplay muted></video>
-                <video class="callarea__video__local" id="callclient__local_video_stream" autoplay muted></video>
+              <div class="peo_call_container">
+                <video
+                  class="peo_call_video"
+                  id="callclient__local_video_stream"
+                  autoplay
+                  muted
+                ></video>
+                <div class="peo_call_name">
+                  <span class="name">Phạm Quang Minh</span>
+                </div>
+              </div>
             </div>
+          </div>
+          <div class="callnormal">
+            <div class="image_background">
+              <div class="image_avatar">
+                <img id="avatar" src="/static/image/naruto.jpg" alt="avatar" />
+              </div>
+              <span class="status_call">Đang kết nối ...</span>
+            </div>
+          </div>
         </div>
-    </section>
-    <div>
-        <p id="userId"></p>
-        <input id="calleeId" type="text">
-        <button id="callclient__button_start_video_call">Video Call</button>
-        <button id="callclient__button_start_voice_call">Voice Call</button>
-        <button id="callclient__button_accept_call">Accept</button>
-        <button id="callclient__button_reject_call">Reject</button>
-        <button id="callclient__button_end_call" class="hidden">End call</button>
-        <button id="callclient__button_toggle_camera">Toggle camera</button>
-        <button id="callclient__button_toggle_mic">Toggle mic</button>
+        <div class="callarea_bottom">
+          <button class="btn">
+            <i class="fa-solid fa-circle-user fa-lg"></i>
+          </button>
+          <div class="group_btn_center">
+            <div class="btn_video">
+              <button class="btn" id="callclient__button_toggle_camera">
+                <i class="fa-solid fa-video"></i>
+              </button>
+              <button class="btn">
+                <i class="fa-solid fa-video-slash"></i>
+              </button>
+              <button class="btn">
+                <i class="fa-solid fa-chevron-right fa-rotate-270"></i>
+              </button>
+            </div>
+            <button class="btn btn-danger btn-circle">
+              <i class="fa-solid fa-phone"></i>
+            </button>
+            <div class="btn_mic">
+              <button class="btn">
+                <i class="fa-solid fa-microphone"></i>
+              </button>
+              <button class="btn">
+                <i
+                  class="fa-solid fa-microphone-slash"
+                  styles="color:white !important"
+                ></i>
+              </button>
+              <button
+                class="btn"
+                type="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                <i class="fa-solid fa-chevron-right fa-rotate-270"></i>
+              </button>
+              <ul class="dropdown-menu">
+                <li>
+                  <b><i class="fa-solid fa-microphone"></i>&#160;Chọn micro</b>
+                </li>
+                <li><i class="fa-solid fa-check"></i>&#160;Microphone Array</li>
+                <li>
+                  <i class="fa-solid fa-check"></i>&#160;Thiết bị mặc đinh
+                </li>
+                <hr />
+                <li>
+                  <b><i class="fa-solid fa-volume-high"></i> &#160;Chọn loa</b>
+                </li>
+                <li>
+                  <i class="fa-solid fa-check"></i>&#160;Speaker (Realtek (R)
+                  Audio)
+                </li>
+                <li>
+                  <i class="fa-solid fa-check"></i>&#160;Thiết bị mặc đinh
+                </li>
+                <hr />
+                <li>
+                  <div
+                    class="btn_settings"
+                    data-bs-toggle="modal"
+                    data-bs-target="#exampleModal"
+                  >
+                    &emsp;&#160;Mở cài đặt
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <button
+            class="btn"
+            data-bs-toggle="modal"
+            data-bs-target="#exampleModal"
+          >
+            <i class="fa-solid fa-gear fa-lg"></i>
+          </button>
+          <div
+            class="modal fade"
+            id="exampleModal"
+            tabindex="-1"
+            aria-labelledby="exampleModalLabel"
+            aria-hidden="true"
+          >
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title fs-5" id="exampleModalLabel">
+                    Tình trạng thiết bị
+                  </h5>
+                  <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                  ></button>
+                </div>
+                <div class="modal-body">
+                  <div class="alert alert-primary alert_custom" role="alert">
+                    <div>
+                      <i class="fa-solid fa-video"></i>&#160;Camera đang hoạt
+                      động
+                    </div>
+                    <i class="fa-solid fa-circle-check"></i>
+                  </div>
+                  <div class="alert alert-danger alert_custom" role="alert">
+                    <div>
+                      <i class="fa-solid fa-video"></i>&#160;Camera không hoạt
+                      động
+                    </div>
+                    <i class="fa-solid fa-circle-xmark"></i>
+                  </div>
+                  <label>Camera</label>
+                  <select
+                    class="form-select"
+                    aria-label="Default select example"
+                  >
+                    <option selected>Intergrated Webcam</option>
+                    <option value="1">One</option>
+                  </select>
+                  <div class="camera_test_container">
+                    <video class="camera_test" autoplay muted></video>
+                    <div class="camera_test_fail">
+                      <i class="fa-solid fa-video-slash"></i>
+                    </div>
+                  </div>
+                  <div class="alert alert-primary alert_custom" role="alert">
+                    <div>
+                      <i class="fa-solid fa-microphone"></i>&#160;Mic đang hoạt
+                      động
+                    </div>
+                    <i class="fa-solid fa-circle-check"></i>
+                  </div>
+                  <div class="alert alert-danger alert_custom" role="alert">
+                    <div>
+                      <i class="fa-solid fa-microphone"></i>&#160;Mic không hoạt
+                      động
+                    </div>
+                    <i class="fa-solid fa-circle-xmark"></i>
+                  </div>
+                  <label>Micro</label>
+                  <select
+                    class="form-select"
+                    aria-label="Default select example"
+                  >
+                    <option selected>Thiết bị mặc định</option>
+                    <option value="1">One</option>
+                  </select>
+                  <div class="alert alert-primary alert_custom" role="alert">
+                    <div>
+                      <i class="fa-solid fa-microphone"></i>&#160;Loa/tai nghe đang hoạt
+                      động
+                    </div>
+                    <i class="fa-solid fa-circle-check"></i>
+                  </div>
+                  <div class="alert alert-danger alert_custom" role="alert">
+                    <div>
+                      <i class="fa-solid fa-microphone"></i>&#160;Loa/tai nghe không hoạt
+                      động
+                    </div>
+                    <i class="fa-solid fa-circle-xmark"></i>
+                  </div>
+                  <label>Loa/tai nghe</label>
+                  <select
+                    class="form-select"
+                    aria-label="Default select example"
+                  >
+                    <option selected>Thiết bị mặc định</option>
+                    <option value="1">One</option>
+                  </select>
+                   <label>Âm lượng</label>
+                  <label>Âm lượng</label>
+                  <input class="" type="range" style="width: 100%" />
+                </div>
+                  
+                </div>
+                <div class="modal-footer">
+                  <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                  >
+                    Huỷ
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-</body>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+      crossorigin="anonymous"
+    ></script>
+  </body>
 </html>
