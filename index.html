@@ -83,7 +83,6 @@
 
         loginWithId = (id) => {
           this.callClient.login(id);
-          document.querySelector("#userId").innerHTML = id;
         };
 
         initMediaObjects = async () => {
@@ -100,72 +99,42 @@
         };
 
         registerElements = () => {
-          this.callButtons = {
-            accept: document.querySelector("#" + CallElements.buttonAcceptCall),
-            reject: document.querySelector("#" + CallElements.buttonRejectCall),
-            startVideo: document.querySelector(
-              "#" + CallElements.buttonStartVideoCall
-            ),
-            startVoice: document.querySelector(
-              "#" + CallElements.buttonStartVoiceCall
-            ),
-            end: document.querySelector("#" + CallElements.buttonEndCall),
-            toggleMic: document.querySelector(
-              "#" + CallElements.buttonToggleMic
-            ),
-            toggleCamera: document.querySelector(
-              "#" + CallElements.buttonToggleCamera
-            ),
-          };
+            this.ui = {
+              call: {
+                toggleCamera: document.querySelector("#callclient__button_toggle_camera"),
+                cameraOn: document.querySelector("#callclient__icon_video_enabled"),
+                cameraOff: document.querySelector("#callclient__icon_video_disabled"),
+                toggleMic: document.querySelector("#callclient__button_toggle_mic"),
+                micOn: document.querySelector("#callclient__icon_mic_enabled"),
+                micOff: document.querySelector("#callclient__icon_mic_disabled"),
+                end: document.querySelector("#callclient__button_end_call"),
+                remoteVideo: document.querySelector("#callclient__remote_video_stream"),
+                callStatus: document.querySelector("#callclient__text_call_status"),
+                remoteMicOff: document.querySelector("#callclient__icon_remote_mic_disabled"),
+                remoteCameraOff: document.querySelector("#callclient__icon_remote_camera_disabled"),
+              }
+            }
         };
 
         registerFunctions = () => {
-          this.callButtons.startVideo.addEventListener("click", () => {
-            let calleeId = document.querySelector("#calleeId").value;
-            this.callClient.createCall(
-              {
-                userId: calleeId,
-                userName: "Nguyen Van A",
-                userAvatar: "123123",
-              },
-              CallType.VIDEO
-            );
-          });
-          this.callButtons.startVoice.addEventListener("click", () => {
-            let calleeId = document.querySelector("#calleeId").value;
-            this.callClient.createCall(
-              {
-                userId: calleeId,
-                userName: "Nguyen Van A",
-                userAvatar: "123123",
-              },
-              CallType.AUDIO
-            );
-          });
-          this.callButtons.accept.addEventListener("click", () => {
-            this.callClient.acceptCall();
-          });
-          this.callButtons.reject.addEventListener("click", () => {
-            this.callClient.rejectCall();
-          });
-          this.callButtons.end.addEventListener("click", () => {
+          this.ui.call.end.addEventListener("click", () => {
             this.callClient.endCall();
           });
-          this.callButtons.toggleMic.addEventListener("click", () => {
+          this.ui.call.toggleMic.addEventListener("click", () => {
             this.toggleMic();
           });
-          this.callButtons.toggleCamera.addEventListener("click", () => {
+          this.ui.call.toggleCamera.addEventListener("click", () => {
             this.toggleCamera();
           });
         };
+        setDisplay = (elem, isVisible) => {
+          if (isVisible) {
+            elem.classList.remove("hidden");
 
-        hideElement = (elem) => {
-          elem.classList.add("hidden");
-        };
-
-        showElement = (elem) => {
-          elem.classList.remove("hidden");
-        };
+          } else {
+            elem.classList.add("hidden");
+          }
+        }
 
         createOffer = async () => {
           const offer = await this.peerConnection.createOffer();
@@ -225,11 +194,15 @@
         toggleCamera() {
           const enabled = !this.callClient.videoStatus;
           this.callClient.changeCameraStatus(enabled);
+          this.setDisplay(this.ui.call.cameraOn, enabled);
+          this.setDisplay(this.ui.call.cameraOff, !enabled);
         }
 
         toggleMic() {
           const enabled = !this.callClient.audioStatus;
           this.callClient.changeMicStatus(enabled);
+          this.setDisplay(this.ui.call.micOn, enabled);
+          this.setDisplay(this.ui.call.micOff, !enabled);
         }
       }
 
@@ -245,21 +218,20 @@
         let app = Application.getInstance();
         app.registerElements();
         app.callClient.addCallStateListener((state) => {
-          if (state == CallState.CALLING || state == CallState.CONNECTING) {
-            app.hideElement(app.callButtons.accept);
-            app.hideElement(app.callButtons.reject);
-            app.showElement(app.callButtons.end);
-          } else {
-            app.showElement(app.callButtons.accept);
-            app.showElement(app.callButtons.reject);
-            app.hideElement(app.callButtons.end);
+          if (state == CallState.CALLING) {
+            app.setDisplay(app.ui.call.callStatus, false);
           }
           console.log("callState", state);
         });
+        app.callClient.mediaEvents.addListener((data) => {
+          app.setDisplay(app.ui.call.remoteMicOff, !data.audio);
+          app.setDisplay(app.ui.call.remoteCameraOff, !data.video);
+          app.setDisplay(app.ui.call.remoteVideo, data.video);
+          
+        })
 
         app.initMediaObjects().then(() => {
           app.loginWithId(USER_ID);
-          console.log("SDSD", ACCEPT_INCOMING);
           if (CALLEE_ID) {
             console.log(CALLEE_ID);
             app.callClient.createCall(
@@ -315,7 +287,17 @@
                       alt="avatar"
                     />
                   </div>
-                  <span class="status_call">Đang kết nối ...</span>
+                  <div class="status_call_container">
+                    <span id="callclient__text_call_status" class="status_call">Đang kết nối ...</span>
+                    <span id="callclient__icon_remote_mic_disabled" class="status_media hidden">
+                      <i class="fa-solid fa-microphone-slash"
+                        styles="color:white !important"
+                      ></i></span>
+                    <span id="callclient__icon_remote_camera_disabled" class="status_media hidden">
+                      <i class="fa-solid fa-video-slash"></i>
+                    </span>
+                  </div>
+                  
                 </div>
                 <div class="peo_receive_name">
                   <span class="name">Phạm Quang Minh</span>
@@ -335,7 +317,7 @@
               </div>
             </div>
           </div>
-          <div class="callnormal">
+          <div class="callnormal hidden">
             <div class="image_background">
               <div class="image_avatar">
                 <img id="avatar" src="/static/image/naruto.jpg" alt="avatar" />
@@ -351,27 +333,31 @@
           <div class="group_btn_center">
             <div class="btn_video">
               <button class="btn" id="callclient__button_toggle_camera">
-                <i class="fa-solid fa-video"></i>
-              </button>
-              <button class="btn">
-                <i class="fa-solid fa-video-slash"></i>
+                <div id="callclient__icon_video_enabled">
+                  <i class="fa-solid fa-video"></i>
+                </div>
+                <div class="hidden" id="callclient__icon_video_disabled">
+                  <i class="fa-solid fa-video-slash"></i>
+                </div>
               </button>
               <button class="btn">
                 <i class="fa-solid fa-chevron-right fa-rotate-270"></i>
               </button>
             </div>
-            <button class="btn btn-danger btn-circle">
+            <button class="btn btn-danger btn-circle" id="callclient__button_end_call">
               <i class="fa-solid fa-phone"></i>
             </button>
             <div class="btn_mic">
-              <button class="btn">
-                <i class="fa-solid fa-microphone"></i>
-              </button>
-              <button class="btn">
-                <i
+              <button class="btn" id="callclient__button_toggle_mic">
+                <div id="callclient__icon_mic_enabled">
+                  <i class="fa-solid fa-microphone"></i>
+                </div>
+                <div class="hidden" id="callclient__icon_mic_disabled">
+                  <i
                   class="fa-solid fa-microphone-slash"
                   styles="color:white !important"
                 ></i>
+                </div>
               </button>
               <button
                 class="btn"

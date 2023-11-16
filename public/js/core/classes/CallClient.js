@@ -3,6 +3,7 @@ class CallClient {
         this.socket = socket;
         this._callState = CallState.NONE;
         this._csEvents = new CallEventListener();
+        this.mediaEvents = new CallEventListener();
         this.isLoggedIn = false;
         this.user = null;
         this.activePayload = null;
@@ -47,6 +48,7 @@ class CallClient {
         this.socket.on(SocketEvents.CALL_WEBRTC_READY, this.onCallReady);
         this.socket.on(SocketEvents.CALL_RECEIVE_CANDIDATE, this.onReceiveCandidate);
         this.socket.on(SocketEvents.SOCKET_RECONNECTED, this.onReconnect);
+        this.socket.on(SocketEvents.CALL_UPDATE_MEDIA_DEVICES_STATUS, this.onMediaStatusChange);
     }
 
     onCallIncoming = (payload) => {
@@ -77,32 +79,27 @@ class CallClient {
     onCallRejected = () => {
         this.callState = CallState.REJECTED;
         this.activePayload = null;
-        alert("Call rejected")
     }
 
     onCallTimedOut = () => {
         this.callState = CallState.TIMEDOUT;
         this.activePayload = null;
-        alert("Call timed out");
     }
 
     onCallBusy = () => {
         this.callState = CallState.BUSY;
         this.activePayload = null;
-        alert("Receiver is busy");
     }
 
     onCallOngoing = () => {
         this.callState = CallState.ONGOING;
         this.activePayload = null;
-        alert("You're already in a call");
     }
 
     onCallEnded = () => {
         this.callState = CallState.ENDED;
         this.activePayload = null;
         this.app.resetCall();
-        alert("Call ended");
     }
 
     onReceiveOffer = (webrtcOffer) => {
@@ -126,6 +123,11 @@ class CallClient {
     onReconnect = () => {
         if (this.user)
             this.login(this.user.userId);
+    }
+
+    onMediaStatusChange = (data) => {
+        console.log(data);
+        this.mediaEvents.invoke(data);
     }
 
     login = (userId) => {
