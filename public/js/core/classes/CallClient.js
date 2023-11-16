@@ -4,6 +4,7 @@ class CallClient {
         this._callState = CallState.NONE;
         this._csEvents = new CallEventListener();
         this.mediaEvents = new CallEventListener();
+        this.payloadEvents = new CallEventListener();
         this.isLoggedIn = false;
         this.user = null;
         this.activePayload = null;
@@ -55,6 +56,7 @@ class CallClient {
         this.callState = CallState.RINGING;
         let _payload = new CallPayload(payload);
         this.activePayload = _payload;
+        this.payloadEvents.invoke(this.activePayload);
         if (this.incomingCallAccepted) {
             this.acceptCall();
             this.incomingCallAccepted = false;
@@ -71,6 +73,11 @@ class CallClient {
 
     onCallAccepted = () => {
         this.callState = CallState.CONNECTING;
+        this.socket.emit(SocketEvents.CALL_CHANGE_MEDIA_DEVICES, {
+            userId: this.user.userId,
+            audio: this.audioStatus,
+            video: this.videoStatus
+        });
         this.app.createOffer().then(offer => {
             this.sendOffer(offer);
         })
@@ -130,13 +137,9 @@ class CallClient {
         this.mediaEvents.invoke(data);
     }
 
-    login = (userId) => {
-        this.user = {
-            userId: userId,
-            userName: "Nguyen Van B",
-            userAvatar: "1231323"
-        }
-        this.socket.emit(SocketEvents.USER_LOGIN, userId);
+    login = (user) => {
+        this.user = user;
+        this.socket.emit(SocketEvents.USER_LOGIN, user.userId);
     }
 
     createCall = (callee, callType) => {
@@ -151,8 +154,10 @@ class CallClient {
             calleeAvatar: _callee.userAvatar,
             callType: callType
         });
+        console.log(payload);
         this.socket.emit(SocketEvents.CALL_START, payload);
         this.activePayload = payload;
+        this.payloadEvents.invoke(this.activePayload);
         this.callState = CallState.RINGING;
         this.setCallType(callType);
     }

@@ -52,7 +52,7 @@
     overflow: hidden;
     position: relative;
 }
-#background{
+#callclient__callee_background{
     background-size: contain;
     background-position: center;
     position: absolute;
@@ -71,7 +71,6 @@
     height: 250px;
     width: 250px;
     border-radius: 50%;
-    border: 1px #ff7070a6 solid;
     background-size:cover ;
     background-position:center ;
     overflow: hidden;
