@@ -57,6 +57,7 @@ class CallServer {
 
     addUser(userId, socket) {
         try {
+            userId = String(userId);
             const _user = new CallUser(socket, userId);
             this.users.set(userId, _user);
             this.log("Add user:", userId);
