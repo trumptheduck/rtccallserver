@@ -2,14 +2,14 @@ try {const CallType = require("../../common/constants/CallType");} catch (err) {
 
 class CallPayload {
     constructor(config) {
-        this.roomId = config.roomId?config.roomId:-1;
-        this.roomCode = config.roomCode?config.roomCode:"";
-        this.roomUrl = config.roomUrl?config.roomUrl:"";
-        this.callerId = config.callerId?config.callerId:"";
-        this.callerName = config.callerName?config.callerName:"";
-        this.calleeId = config.calleeId?config.calleeId:"";
-        this.calleeName = config.calleeName?config.calleeName:"";
-        this.calleeAvatar = config.calleeAvatar?config.calleeAvatar:"";
+        this.roomId = config.roomId?String(config.roomId):-1;
+        this.roomCode = config.roomCode?String(config.roomCode):"";
+        this.roomUrl = config.roomUrl?String(config.roomUrl):"";
+        this.callerId = config.callerId?String(config.callerId):"";
+        this.callerName = config.callerName?String(config.callerName):"";
+        this.calleeId = config.calleeId?String(config.calleeId):"";
+        this.calleeName = config.calleeName?String(config.calleeName):"";
+        this.calleeAvatar = config.calleeAvatar?String(config.calleeAvatar):"";
         this.callType = config.callType?config.callType: CallType.NONE;
     }
 }

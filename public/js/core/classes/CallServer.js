@@ -69,7 +69,7 @@ class CallServer {
 
     getUser(userId) {
         try {
-            return this.users.get(userId);
+            return this.users.get(String(userId));
         } catch (err) {
             this.logError("getUser", err);
         }
@@ -77,7 +77,7 @@ class CallServer {
 
     addSocket(userId, socket) {
         try {
-            const _user = this.users.get(userId);
+            const _user = this.getUser(userId);
             if (_user) {
                 _user.addSocket(socket.id);
                 this.log("Add socket:", userId);
@@ -100,7 +100,7 @@ class CallServer {
         try {
             return (userId) => {
                 this.log("User logged in:", userId);
-                let user = this.users.get(userId);
+                let user = this.getUser(userId);
                 if (!user) {
                     user = this.addUser(userId, socket);
                     user.onLogin(socket.id);
@@ -108,6 +108,7 @@ class CallServer {
                     user.addSocket(socket);
                     user.onLogin(socket.id);
                 }
+                this.log(this.users.size);
             }
         } catch (err) {
             this.logError("loginHandler", err);
@@ -160,7 +161,7 @@ class CallServer {
 
     emitToUser(socket, userId, event, ...payload) {
         try {
-            const user = this.users.get(userId);
+            const user = this.getUser(userId);
             if (user) user.traverseSockets((_, sid) => {
                 this.log("Receiver", sid, event);
                 socket.to(sid).emit(event, ...payload)
@@ -173,8 +174,8 @@ class CallServer {
 
     checkBusy(userId) {
         try {
-            this.log(this.users.get(userId).inCall);
-            return this.users.get(userId) ? this.users.get(userId).inCall : false;
+            this.log(this.getUser(userId).inCall);
+            return this.getUser(userId) ? this.getUser(userId).inCall : false;
         } catch (err) {
             this.logError("checkBusy", err);
         }

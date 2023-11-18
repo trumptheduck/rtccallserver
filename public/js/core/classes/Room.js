@@ -49,7 +49,7 @@ class Room {
 
     leave = (userId) => {
         try {
-            let _user = this.users.get(userId);
+            let _user = this.getUser(userId);
             if (_user) {
                 this.users.delete(userId);
                 this.log("User left:", userId);
@@ -65,7 +65,7 @@ class Room {
 
     hasUser = (userId) => {
         try {
-            return this.users.has(userId);
+            return this.users.has(String(userId));
         } catch (err) {
             this.logError("hasUser", err);
         }
@@ -73,7 +73,7 @@ class Room {
 
     getUser = (userId) => {
         try {
-            return this.users.get(userId);
+            return this.users.get(String(userId));
         } catch (err) {
             this.logError("getUser", err);
         }

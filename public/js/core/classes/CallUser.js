@@ -121,6 +121,7 @@ class CallUser {
 
     onLogin = (socketId) => {
         try {
+            console.log(this.sockets.size);
             const _callSocket = this.sockets.get(socketId);
             clearInterval(this.disposeTimer);
             if (this.disposeTimer) {
