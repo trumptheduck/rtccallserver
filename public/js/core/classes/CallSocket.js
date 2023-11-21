@@ -243,7 +243,6 @@ class CallSocket {
                 this.callServer.emitToUser(this.socket, calleeId, SocketEvents.CALL_TIMEDOUT);
                 let callee = this.callServer.getUser(calleeId);
                 if (callee) callee.onCallTimedOut();
-                this.user.resetCallInfo();
                 this.log("Call timed out");
             }
         } catch (err) {

@@ -108,12 +108,10 @@ class CallUser {
 
     startTimer = (callback) => {
         try {
-            if (!this.waitingTimer) {
-                this.waitingTimer = setTimeout(() => {
-                    callback();
-                    this.waitingTimer = null;
-                }, Constants.CALL_TIMEOUT_VALUE);
-            }
+            this.waitingTimer = setTimeout(() => {
+                callback();
+                this.waitingTimer = null;
+            }, Constants.CALL_TIMEOUT_VALUE);
         } catch (err) {
             this.logError("startTimer", err);
         }
@@ -193,7 +191,7 @@ class CallUser {
     onCallTimedOut = () => {
         try {
             clearTimeout(this.waitingTimer);
-            this.log("Call timed out");
+            this.log("Call timed out", this.sockets.size);
             this.sockets.forEach(_callSocket => {
                 _callSocket.socket.emit(SocketEvents.CALL_TIMEDOUT);
             })
@@ -206,16 +204,9 @@ class CallUser {
 
     onRoomMemberDisconnect = () => {
         try {
-            if (this.activeSocket) {
-                const _callSocket = this.sockets.get(this.activeSocket);
-                if (_callSocket) {
-                    _callSocket.socket.emit(SocketEvents.CALL_ENDED);
-                }
-            } else {
-                this.sockets.forEach(_callSocket => {
-                    _callSocket.socket.emit(SocketEvents.CALL_ENDED);
-                })
-            }
+            this.sockets.forEach(_callSocket => {
+                _callSocket.socket.emit(SocketEvents.CALL_ENDED);
+            })
             this.leaveCurrentRoom();
             this.resetCallInfo();
         } catch (err) {
@@ -283,6 +274,7 @@ class CallUser {
             this.activeSocket = null;
             this.callType = CallType.NONE;
             this.incomingCall = null;
+            this.waitingTimer = null;
 
             this.log("Resetting call info...");
         } catch (err) {
