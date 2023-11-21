@@ -167,16 +167,9 @@ class CallUser {
         try {
             clearTimeout(this.waitingTimer);
             this.log("Call rejected")
-            if (this.activeSocket) {
-                const _callSocket = this.sockets.get(this.activeSocket);
-                if (_callSocket) {
-                    _callSocket.socket.emit(SocketEvents.CALL_REJECTED);
-                }
-            } else {
-                this.sockets.forEach(_callSocket => {
-                    _callSocket.socket.emit(SocketEvents.CALL_REJECTED);
-                })
-            }
+            this.sockets.forEach(_callSocket => {
+                _callSocket.socket.emit(SocketEvents.CALL_REJECTED);
+            }) 
             this.leaveCurrentRoom();
             this.resetCallInfo();
         } catch (err) {
@@ -187,16 +180,9 @@ class CallUser {
     onCallEnded = () => {
         try {
             this.log("Call ended");
-            if (this.activeSocket) {
-                const _callSocket = this.sockets.get(this.activeSocket);
-                if (_callSocket) {
-                    _callSocket.socket.emit(SocketEvents.CALL_ENDED);
-                }
-            } else {
-                this.sockets.forEach(_callSocket => {
-                    _callSocket.socket.emit(SocketEvents.CALL_ENDED);
-                })
-            }
+            this.sockets.forEach(_callSocket => {
+                _callSocket.socket.emit(SocketEvents.CALL_ENDED);
+            })
             this.leaveCurrentRoom();
             this.resetCallInfo();
         } catch (err) {
@@ -208,16 +194,9 @@ class CallUser {
         try {
             clearTimeout(this.waitingTimer);
             this.log("Call timed out");
-            if (this.activeSocket) {
-                const _callSocket = this.sockets.get(this.activeSocket);
-                if (_callSocket) {
-                    _callSocket.socket.emit(SocketEvents.CALL_TIMEDOUT);
-                }
-            } else {
-                this.sockets.forEach(_callSocket => {
-                    _callSocket.socket.emit(SocketEvents.CALL_TIMEDOUT);
-                })
-            }
+            this.sockets.forEach(_callSocket => {
+                _callSocket.socket.emit(SocketEvents.CALL_TIMEDOUT);
+            })
             this.leaveCurrentRoom();
             this.resetCallInfo();
         } catch (err) {
