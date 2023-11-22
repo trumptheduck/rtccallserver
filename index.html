@@ -49,6 +49,7 @@
           this.callClient = new CallClient(socket);
           this.localVideoStream = null;
           this.remoteVideoStream = null;
+          this.removeAudioStream = null;
 
           this.peerConnection = new RTCPeerConnection({
             "iceServers": [
@@ -316,7 +317,6 @@
                   class="peo_receive_video"
                   id="callclient__remote_video_stream"
                   autoplay
-                  muted
                 ></video>
                 <div class="image_background">
                   <img

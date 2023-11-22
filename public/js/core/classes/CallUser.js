@@ -178,6 +178,7 @@ class CallUser {
     onCallEnded = () => {
         try {
             this.log("Call ended");
+            clearTimeout(this.waitingTimer);
             this.sockets.forEach(_callSocket => {
                 _callSocket.socket.emit(SocketEvents.CALL_ENDED);
             })
