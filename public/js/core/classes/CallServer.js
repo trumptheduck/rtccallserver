@@ -174,7 +174,6 @@ class CallServer {
 
     checkBusy(userId) {
         try {
-            this.log(this.getUser(userId).inCall);
             return this.getUser(userId) ? this.getUser(userId).inCall : false;
         } catch (err) {
             this.logError("checkBusy", err);

@@ -49,6 +49,10 @@ class CallSocket {
             this.socket.on(SocketEvents.CALL_SEND_CANDIDATE, this.sendCandidate);
             this.socket.on(SocketEvents.CALL_CHANGE_MEDIA_DEVICES, this.changeMediaDevices);
             this.socket.on(SocketEvents.CALL_CLIENT_READY, this.onUserCallReady);
+            this.socket.on(SocketEvents.CALL_CHECK_CALLEE_STATUS, this.checkCalleeStatus);
+            this.socket.on(SocketEvents.CALL_SWITCH_TO_VIDEO, this.switchToVideo);
+            this.socket.on(SocketEvents.CALL_SWITCH_TO_VIDEO_ACCEPT, this.acceptSwitchToVideo);
+            this.socket.on(SocketEvents.CALL_SWITCH_TO_VIDEO_REJECT, this.rejectSwitchToVideo);
         } catch (err) {
             this.logError("registerEvents", err);
         }
@@ -205,14 +209,67 @@ class CallSocket {
         }
     }
 
-    endCall = () => {
+    endCall = (payload) => {
         try {
+            let _payload = new CallPayload(payload);
+            let calleeId = _payload.calleeId;
+            let callerId = _payload.callerId;
+            if (calleeId.length > 0) {
+                let _callee = this.callServer.getUser(calleeId);
+                let _caller = this.callServer.getUser(callerId);
+                if (_callee) {
+                    _callee.onCallEnded();
+                }
+                if (_caller) {
+                    _caller.onCallEnded();
+                }
+            };
             if (this.user.room) {
                 this.user.room.onCallEnded();
             }
             this.log("End call");
         } catch (err) {
             this.logError("endCall", err);
+        }
+    }
+
+    checkCalleeStatus = (calleeId) => {
+        try {
+            if (this.user) {
+                const _isBusy = this.callServer.checkBusy(calleeId);
+                console.log(_isBusy);
+                this.socket.emit(SocketEvents.CALL_CALLEE_STATUS, {busy: _isBusy, ongoing: this.user.inCall});
+            }
+            console.log("checkCalleeStatus");
+        } catch (err) {
+            this.logError("checkCalleeStatus", err);
+        }
+    }
+
+    switchToVideo() {
+        try {
+            this.log("Request switch to video call");
+            this.roomEmit(SocketEvents.CALL_SWITCH_TO_VIDEO_REQUESTED);
+        } catch (err) {
+            this.logError("switchToVideo", err);
+        }
+    }
+
+    acceptSwitchToVideo() {
+        try {
+            this.log("Accept switch to video call");
+            this.roomEmit(SocketEvents.CALL_SWITCH_TO_VIDEO_ACCEPTED);
+        } catch (err) {
+            this.logError("acceptSwitchToVideo", err);
+        }
+    }
+
+    rejectSwitchToVideo() {
+        try {
+            this.log("Reject switch to video call");
+            this.roomEmit(SocketEvents.CALL_SWITCH_TO_VIDEO_REJECTED);
+        } catch (err) {
+            this.logError("rejectSwitchToVideo", err);
         }
     }
 
