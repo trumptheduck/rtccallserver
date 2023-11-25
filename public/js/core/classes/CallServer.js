@@ -55,7 +55,7 @@ class CallServer {
         }
     }
 
-    addUser(userId, socket) {
+    addUser = (userId, socket) => {
         try {
             userId = String(userId);
             const _user = new CallUser(socket, userId);
@@ -67,7 +67,7 @@ class CallServer {
         }
     }
 
-    getUser(userId) {
+    getUser = (userId) => {
         try {
             return this.users.get(String(userId));
         } catch (err) {
@@ -75,7 +75,7 @@ class CallServer {
         }
     }
 
-    addSocket(userId, socket) {
+    addSocket = (userId, socket) => {
         try {
             const _user = this.getUser(userId);
             if (_user) {
@@ -87,7 +87,7 @@ class CallServer {
         }
     }
 
-    removeUser(key) {
+    removeUser = (key) => {
         try {
             this.users.delete(key);
             this.log("Remove user:", key);
@@ -96,7 +96,7 @@ class CallServer {
         }
     }
 
-    loginHandler(socket) {
+    loginHandler = (socket) => {
         try {
             return (userId) => {
                 this.log("User logged in:", userId);
@@ -115,7 +115,7 @@ class CallServer {
         }     
     }
 
-    logoutHandler(socket) {
+    logoutHandler = (socket) => {
         try {
             return () => {
                 this.log("User logged out:", socket.id);
@@ -128,7 +128,7 @@ class CallServer {
         }
     }
 
-    createOneOnOneCallRoom(caller, calleeId) {
+    createOneOnOneCallRoom = (caller, calleeId) => {
         try {
             const allowedIds = new Map();
             allowedIds.set(caller.id, true);
@@ -142,7 +142,7 @@ class CallServer {
         }
     }
 
-    getRoom(roomId) {
+    getRoom = (roomId) => {
         try {
             return this.rooms.get(roomId);
         } catch (err) {
@@ -150,7 +150,7 @@ class CallServer {
         }
     }
 
-    deleteRoom(roomId) {
+    deleteRoom = (roomId) => {
         try {
             this.rooms.delete(roomId);
             this.log("Deleted room:", roomId)
@@ -159,7 +159,7 @@ class CallServer {
         }
     }
 
-    emitToUser(socket, userId, event, ...payload) {
+    emitToUser = (socket, userId, event, ...payload) => {
         try {
             const user = this.getUser(userId);
             if (user) user.traverseSockets((_, sid) => {
@@ -172,7 +172,7 @@ class CallServer {
         }
     }
 
-    checkBusy(userId) {
+    checkBusy = (userId) => {
         try {
             return this.getUser(userId) ? this.getUser(userId).inCall : false;
         } catch (err) {

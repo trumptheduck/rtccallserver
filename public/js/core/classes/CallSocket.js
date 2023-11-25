@@ -5,15 +5,15 @@ const CallUser = require("./CallUser");
 
 class CallSocket {
 
-    log(...args) {
+    log = (...args) => {
         console.log(`[SOCKET: ${this.socket.id}|${this.user.id}]`, ...args);
     }
 
-    logError(...args) {
+    logError = (...args) => {
         console.log(`[SOCKET ERROR: ${this.socket.id}|${this.user.id}]`, ...args);
     }
 
-    roomEmit(event, ...args) {
+    roomEmit = (event, ...args) => {
         try {
             if (this.user.room) return this.socket.to(this.user.room.id).emit(event, ...args);
             return this.socket.emit(event, ...args);
@@ -246,7 +246,7 @@ class CallSocket {
         }
     }
 
-    switchToVideo() {
+    switchToVideo = () => {
         try {
             this.log("Request switch to video call");
             this.roomEmit(SocketEvents.CALL_SWITCH_TO_VIDEO_REQUESTED);
@@ -255,7 +255,7 @@ class CallSocket {
         }
     }
 
-    acceptSwitchToVideo() {
+    acceptSwitchToVideo = () => {
         try {
             this.log("Accept switch to video call");
             this.roomEmit(SocketEvents.CALL_SWITCH_TO_VIDEO_ACCEPTED);
@@ -264,7 +264,7 @@ class CallSocket {
         }
     }
 
-    rejectSwitchToVideo() {
+    rejectSwitchToVideo = () => {
         try {
             this.log("Reject switch to video call");
             this.roomEmit(SocketEvents.CALL_SWITCH_TO_VIDEO_REJECTED);
@@ -307,7 +307,7 @@ class CallSocket {
         }
     }
 
-    joinRoom(room) {
+    joinRoom = (room) => {
         try {
             this.user.room = room;
             this.socket.join(room.id);
