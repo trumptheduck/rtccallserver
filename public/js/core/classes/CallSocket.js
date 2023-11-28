@@ -152,6 +152,7 @@ class CallSocket {
                 })
                 this.log("Accept call from user:", _payload.callerId);
             }
+            this.keepalive();
         } catch (err) {
             this.logError("acceptCall", err);
         }
@@ -206,6 +207,7 @@ class CallSocket {
             //Set active call socket to this socket
             this.user.setActiveSocket(this.socket.id);
             this.log("Calling user:", calleeId);
+            this.keepalive();
             return true;
         } catch (err) {
             this.logError("createCall", err);
@@ -230,8 +232,7 @@ class CallSocket {
             if (this.user.room) {
                 this.user.room.onCallEnded();
             }
-            clearTimeout(this.keepaliveTimeout);
-            this.keepaliveTimeout = null;
+            this.stopKeepalive();
             this.log("End call");
         } catch (err) {
             this.logError("endCall", err);
@@ -250,6 +251,7 @@ class CallSocket {
 
     keepalive = () => {
         try {
+            this.log("Keepalive");
             clearTimeout(this.keepaliveTimeout);
             this.keepaliveTimeout = setTimeout(() => {
                 this.terminateCall();
@@ -259,6 +261,11 @@ class CallSocket {
         } catch (err) {
             this.logError(err);
         }
+    }
+
+    stopKeepalive = () => {
+        clearTimeout(this.keepaliveTimeout);
+        this.keepaliveTimeout = null;
     }
 
     terminateCall = () => {
@@ -322,7 +329,6 @@ class CallSocket {
     onUserCallReady = () => {
         try {
             if (this.user.room) {
-                this.keepalive();
                 this.user.isCallReady = true;
                 this.user.room.onMemberCallReady();
             }
@@ -339,6 +345,7 @@ class CallSocket {
                 this.callServer.emitToUser(this.socket, calleeId, SocketEvents.CALL_TIMEDOUT);
                 let callee = this.callServer.getUser(calleeId);
                 if (callee) callee.onCallTimedOut();
+                this.stopKeepalive();
                 this.log("Call timed out");
             }
         } catch (err) {

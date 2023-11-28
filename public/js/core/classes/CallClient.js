@@ -87,21 +87,25 @@ class CallClient {
     onCallRejected = () => {
         this.callState = CallState.REJECTED;
         this.activePayload = null;
+        this.stopKeepalive();
     }
 
     onCallTimedOut = () => {
         this.callState = CallState.TIMEDOUT;
         this.activePayload = null;
+        this.stopKeepalive();
     }
 
     onCallBusy = () => {
         this.callState = CallState.BUSY;
         this.activePayload = null;
+        this.stopKeepalive();
     }
 
     onCallOngoing = () => {
         this.callState = CallState.ONGOING;
         this.activePayload = null;
+        this.stopKeepalive();
     }
 
     onCallEnded = () => {
@@ -162,6 +166,7 @@ class CallClient {
         this.payloadEvents.invoke(this.activePayload);
         this.callState = CallState.RINGING;
         this.setCallType(callType);
+        this.startKeepalive();
     }
 
     acceptCall = () => {
@@ -170,6 +175,7 @@ class CallClient {
             this.callState = CallState.CONNECTING;
             console.log(this.activePayload);
             this.setCallType(this.activePayload.callType);
+            this.startKeepalive();
         }
     }
 
@@ -208,7 +214,6 @@ class CallClient {
 
     markCallAsReady = () => {
         console.log("ready");
-        this.startKeepalive();
         this.socket.emit(SocketEvents.CALL_CLIENT_READY);
     }
 

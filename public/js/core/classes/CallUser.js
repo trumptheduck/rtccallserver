@@ -35,7 +35,7 @@ class CallUser {
     }
 
     logError(...args) {
-        console.log(`[USER ERROR: ${this.socket.id}|${this.user.id}]`, ...args);
+        console.log(`[USER ERROR: ${this.id}]`, ...args);
     }
 
     getStatus = () => {
@@ -91,12 +91,12 @@ class CallUser {
             if (this.hasSocket(socketId)) {
                 const _callSocket = this.sockets.get(socketId);
                 _callSocket.onDisconnect();
+                if (this.inCall) {
+                    this.onCallSocketDisconnected(socketId);
+                }
                 this.sockets.delete(socketId);
                 if (this.sockets.size == 0) {
                     this.onAllSocketsDisconnected();
-                }
-                if (this.inCall) {
-                    this.onCallSocketDisconnected(socketId);
                 }
                 return true;
             }
@@ -218,6 +218,9 @@ class CallUser {
     onCallSocketDisconnected = (socketId) => {
         try {
             if (socketId == this.activeSocket) {
+                const _activeCS = this.sockets.get(this.activeSocket);
+                clearTimeout(_activeCS.keepaliveTimeout);
+                _activeCS.keepaliveTimeout = null;
                 if (this.inCall) {
                     this.activeSocket = null;
                     this.log(`Active socket disconnected, awaiting reconnection...`);
