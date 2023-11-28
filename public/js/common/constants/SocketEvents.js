@@ -35,7 +35,8 @@ const SocketEvents = {
     CALL_CALLEE_STATUS: "callserver:call_callee_status",
     CALL_ONGOING: "callserver:call_ongoing",
     CALL_END: "callserver:call_end",
-    CALL_ENDED: "callserver:call_ended"
+    CALL_ENDED: "callserver:call_ended",
+    CALL_KEEPALIVE: "callserver:call_keepalive",
 }
 
 try {if (module) module.exports = SocketEvents;} catch (err) {}

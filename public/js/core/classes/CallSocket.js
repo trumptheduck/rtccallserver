@@ -2,6 +2,7 @@ const CallPayload = require("./CallPayload");
 const CallServer = require("./CallServer");
 const SocketEvents = require("../../common/constants/SocketEvents");
 const CallUser = require("./CallUser");
+const Constants = require("../../common/constants/Constants");
 
 class CallSocket {
 
@@ -26,6 +27,7 @@ class CallSocket {
         this.socket = socket;
         this.user = user;
         this.callServer = CallServer.getInstance();
+        this.keepaliveTimeout = null;
     }
 
     init = () => {
@@ -53,6 +55,7 @@ class CallSocket {
             this.socket.on(SocketEvents.CALL_SWITCH_TO_VIDEO, this.switchToVideo);
             this.socket.on(SocketEvents.CALL_SWITCH_TO_VIDEO_ACCEPT, this.acceptSwitchToVideo);
             this.socket.on(SocketEvents.CALL_SWITCH_TO_VIDEO_REJECT, this.rejectSwitchToVideo);
+            this.socket.on(SocketEvents.CALL_KEEPALIVE, this.keepaliveCall);
         } catch (err) {
             this.logError("registerEvents", err);
         }
@@ -227,9 +230,44 @@ class CallSocket {
             if (this.user.room) {
                 this.user.room.onCallEnded();
             }
+            clearTimeout(this.keepaliveTimeout);
+            this.keepaliveTimeout = null;
             this.log("End call");
         } catch (err) {
             this.logError("endCall", err);
+        }
+    }
+
+    keepaliveCall = () => {
+        try {
+            if (this.keepaliveTimeout) {
+                this.keepalive();
+            }
+        } catch (err) {
+            this.logError(err);
+        }
+    }
+
+    keepalive = () => {
+        try {
+            clearTimeout(this.keepaliveTimeout);
+            this.keepaliveTimeout = setTimeout(() => {
+                this.terminateCall();
+                this.keepaliveTimeout = null;
+                this.log("Call is terminated, keepalive failed");
+            }, Constants.KEEPALIVE_TIMEOUT_VALUE);
+        } catch (err) {
+            this.logError(err);
+        }
+    }
+
+    terminateCall = () => {
+        try {
+            if (this.user.room) {
+                this.user.room.onCallEnded();
+            }
+        } catch (err) {
+            this.logError(err);
         }
     }
 
@@ -284,6 +322,7 @@ class CallSocket {
     onUserCallReady = () => {
         try {
             if (this.user.room) {
+                this.keepalive();
                 this.user.isCallReady = true;
                 this.user.room.onMemberCallReady();
             }

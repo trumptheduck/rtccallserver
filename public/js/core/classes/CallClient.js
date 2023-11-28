@@ -11,6 +11,7 @@ class CallClient {
         this.videoStatus = true;
         this.audioStatus = true;
         this.incomingCallAccepted = false;
+        this.keepAliveTimer = null;
 
         this.registerEvents();
     }
@@ -106,6 +107,7 @@ class CallClient {
     onCallEnded = () => {
         this.callState = CallState.ENDED;
         this.activePayload = null;
+        this.stopKeepalive();
         this.app.resetCall();
     }
 
@@ -189,6 +191,7 @@ class CallClient {
             this.callState = CallState.ENDED;
         }
         this.activePayload = null;
+        this.stopKeepalive();
     }
 
     sendOffer = (webrtcOffer) => {
@@ -205,6 +208,7 @@ class CallClient {
 
     markCallAsReady = () => {
         console.log("ready");
+        this.startKeepalive();
         this.socket.emit(SocketEvents.CALL_CLIENT_READY);
     }
 
@@ -235,6 +239,18 @@ class CallClient {
         } else if (type == CallType.AUDIO) {
             this.changeCameraStatus(false);
         }
+    }
+
+    startKeepalive = () => {
+        clearInterval(this.keepAliveTimer);
+        this.keepAliveTimer = setInterval(()=>{
+            this.socket.emit(SocketEvents.CALL_KEEPALIVE);
+        }, 2000);
+    }
+
+    stopKeepalive = () => {
+        clearInterval(this.keepAliveTimer);
+        this.keepAliveTimer = null;
     }
 
 }
