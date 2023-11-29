@@ -130,7 +130,6 @@ class Room {
             this.log("Call rejected:", userId);
             this.callState = CallState.REJECTED;
             this.users.forEach((user, uid) => {
-                if (userId == uid) return;
                 user.onCallRejected();
             });
         } catch (err) {
