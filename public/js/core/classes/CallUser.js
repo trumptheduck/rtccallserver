@@ -23,6 +23,8 @@ class CallUser {
         this.activeSocket = null;
         this.callType = CallType.NONE;
 
+        this.lastKeptaliveTimestamp = null;
+
         if (socket) {
             this.addSocket(socket);
         } else {

@@ -2,19 +2,24 @@ const CallServer = require("./CallServer");
 const CallState = require("../../common/constants/CallState");
 
 class Room {
-    constructor(id, code, host, allowedIds) {
+    constructor(callerId, calleeId, host, allowedIds) {
         this.users = new Map();
         this.host = host;
         this.allowedIds = allowedIds;
-        this.id = id;
-        this.code = code;
+        this.id = callerId;
+        this.code = calleeId;
         this.users.set(host.id, host);
+
+        this.callerId = callerId;
+        this.calleeId = calleeId;
 
         this.callServer = CallServer.getInstance();
 
         this.callState = CallState.RINGING;
+        this.isCallConnected = false;
         this.callStart = 0;
         this.callEnd = 0;
+        this.callType = 0;
     }
 
     log(...args) {
@@ -22,7 +27,7 @@ class Room {
     }
 
     logError(...args) {
-        console.log(`[USER ERROR: ${this.socket.id}|${this.user.id}]`, ...args);
+        console.log(`[ROOM ERROR: ${this.id}]`, ...args);
     }
 
     getStatus = () => {
@@ -36,6 +41,14 @@ class Room {
             }
         } catch (err) {
             this.logError("getStatus", err);
+        }
+    }
+    setCallType = (callType) => {
+        try {
+            this.callType = callType;
+            this.log("Call type", callType);
+        } catch (err) {
+            this.logError("setCallType", err);
         }
     }
     join = (user) => {
@@ -54,6 +67,12 @@ class Room {
                 this.users.delete(userId);
                 this.log("User left:", userId);
                 if (this.users.size == 0) {
+                    if (this.isCallConnected) {
+                        this.callEnd = Date.now();
+                        const _duration = this.callEnd - this.callStart;
+                        this.callServer.sendCallEndedMessage(this.callerId, this.calleeId, _duration, this.callType);
+                        this.log("Call time: ", _duration);
+                    }
                     this.log("Room disposed:", this.id);
                     this.callServer.deleteRoom(this.id)
                 };
@@ -95,10 +114,11 @@ class Room {
         try {
             this.log("Call accepted:", userId);
             this.callState = CallState.CALLING;
-            this.callStart = new Date().getTime();
+            this.callStart = Date.now();
             this.users.forEach((user, uid) => {
                 if (userId == uid) return;
                 user.onCallAccepted();
+                this.callServer.cancelCallNotification(uid);
             })
         } catch (err) {
             this.logError("onCallAccepted", err);
@@ -144,6 +164,7 @@ class Room {
             this.log("Call ended");
             this.callState = CallState.ENDED;
             this.callEnd = new Date().getTime();
+            this.log("Call time", this.callStart - this.callEnd);
             this.users.forEach((user, uid) => {
                 user.onCallEnded();
             })
@@ -154,11 +175,12 @@ class Room {
 
     onMemberCallReady() {
         try {
-            const isEveryoneReady = true;
+            let isEveryoneReady = true;
             this.users.forEach(user => {
                 if (!user.isCallReady) isEveryoneReady = false;
             })
             if (isEveryoneReady) {
+                this.isCallConnected = true;
                 this.callStart = new Date().getTime();
                 this.callState = CallState.CALLING;
                 this.users.forEach((user, uid) => {

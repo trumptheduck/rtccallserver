@@ -1,7 +1,26 @@
 const CallUser = require("./CallUser");
 const Room = require("./Room");
 const SocketEvents = require("../../common/constants/SocketEvents");
+const { default: axios } = require("axios");
+const Constants = require("../../common/constants/Constants");
 
+function millisecondToTime(duration) {
+    var milliseconds = Math.floor((duration % 1000) / 100),
+      seconds = Math.floor((duration / 1000) % 60),
+      minutes = Math.floor((duration / (1000 * 60)) % 60),
+      hours = Math.floor((duration / (1000 * 60 * 60)) % 24);
+    
+    if (hours > 0) {
+        hours = (hours < 10) ? "0" + hours : hours;
+        hours = hours + ":"
+    } else {
+        hours = ""
+    }
+    minutes = (minutes < 10) ? "0" + minutes : minutes;
+    seconds = (seconds < 10) ? "0" + seconds : seconds;
+  
+    return hours + minutes + ":" + seconds;
+  }
 class CallServer {
     static instance = null;
     static getInstance() {
@@ -128,12 +147,13 @@ class CallServer {
         }
     }
 
-    createOneOnOneCallRoom = (caller, calleeId) => {
+    createOneOnOneCallRoom = (caller, calleeId, callType) => {
         try {
             const allowedIds = new Map();
             allowedIds.set(caller.id, true);
             allowedIds.set(calleeId, true);
             const _room = new Room(caller.id, calleeId, caller, allowedIds);
+            _room.setCallType(callType);
             this.rooms.set(_room.id, _room);
             this.log("Created 1-1 call room for:", caller.id, " | ", calleeId, " | ROOMID:", _room.id);
             return _room;
@@ -174,10 +194,124 @@ class CallServer {
 
     checkBusy = (userId) => {
         try {
-            return this.getUser(userId) ? this.getUser(userId).inCall : false;
+            let _user = this.getUser(userId);
+            if (_user) {
+                if (!_user.inCall) return false;
+                if (!_user.lastKeptaliveTimestamp) return false;
+                if (Date.now() - _user.lastKeptaliveTimestamp > Constants.KEEPALIVE_TIMEOUT_VALUE) return false;
+                return true;
+            }
+            return false;
         } catch (err) {
             this.logError("checkBusy", err);
         }
+    }
+    
+    sendCallNotification = async (sendTo, payload) => {
+        try {
+            this.log("Send notification to: ", sendTo);
+            let res = await axios.post("http://43.239.223.157:8000/api/V2/Notification/SendCallNotification", {
+                sendTo: [sendTo],
+                payload: payload
+            })
+            this.log(res.data);
+        } catch (err) {
+            this.logError("checkBusy", err);
+        }
+    }
+    cancelCallNotification = async (sendTo) => {
+        try {
+            this.log("Cancel notification: ", sendTo);
+            let res = await axios.post("http://43.239.223.157:8000/api/V2/Notification/CancelCallNotification", {
+                sendTo: [sendTo]
+            })
+            this.log(res.data);
+        } catch (err) {
+            this.logError("cancelCallNotification", err);
+        }
+    }
+
+    sendMissedCallMessage = async (sendFrom, sendTo, callType) => {
+        try {
+            this.log("Send missed call message:", sendFrom, sendTo, callType);
+            let convId = await this.getConversationId(sendFrom, sendTo);
+            if (convId == -1) return;
+            let _callTypeMessage = callType == 1? "Cuộc gọi video nhỡ": "Cuộc gọi thoại nhỡ";
+            let res = await axios({
+                method: "post",
+                url: "http://210.245.108.202:9000/api/message/SendMessage",
+                data: {
+                  MessageID: '',
+                  ConversationID: convId,
+                  SenderID: Number(sendFrom),
+                  MessageType: "missVideoCall",
+                  Message: _callTypeMessage,
+                  Emotion: 1,
+                  Quote: "",
+                  Profile: "",
+                  ListTag: "",
+                  File: "",
+                  ListMember: "",
+                  IsOnline: [],
+                  IsGroup: 0,
+                  ConversationName: '',
+                  DeleteTime: 0,
+                  DeleteType: 0,
+                },
+                headers: { "Content-Type": "multipart/form-data" }
+            });
+            this.log(res.data);
+        } catch (err) {
+            this.logError("sendMissedCallMessage", err);
+        }
+    }
+
+    sendCallEndedMessage = async (sendFrom, sendTo, duration, callType) => {
+        this.log("Send call ended message:", sendFrom, sendTo, duration, callType);
+
+        let _callTypeMessage = callType == 1? "Cuộc gọi video": "Cuộc gọi thoại";
+        let convId = await this.getConversationId(sendFrom, sendTo);
+        if (convId == -1) return;
+        let res = await axios({
+            method: "post",
+            url: "http://210.245.108.202:9000/api/message/SendMessage",
+            data: {
+              MessageID: '',
+              ConversationID: convId,
+              SenderID: Number(sendFrom),
+              MessageType: "mettingVideoCall",
+              Message: `${_callTypeMessage}: ${millisecondToTime(duration)}`,
+              Emotion: 1,
+              Quote: "",
+              Profile: "",
+              ListTag: "",
+              File: "",
+              ListMember: "",
+              IsOnline: [],
+              IsGroup: 0,
+              ConversationName: '',
+              DeleteTime: 0,
+              DeleteType: 0,
+            },
+            headers: { "Content-Type": "multipart/form-data" }
+        });
+        this.log(res.data);
+    }
+
+    getConversationId = async (userId, contactId) => {
+        let res = await axios({
+            method: "post",
+            url: "http://43.239.223.142:9000/api/conversations/CreateNewConversation",
+            data: {
+            userId:Number(userId),
+            contactId:Number(contactId),
+            },
+            headers: { "Content-Type": "multipart/form-data" }
+        });
+        if (res.data.data&&res.data.data.conversationId) {
+            return res.data.data.conversationId;
+        }
+        return -1;
     }
 }
 

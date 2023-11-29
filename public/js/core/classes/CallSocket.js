@@ -164,9 +164,9 @@ class CallSocket {
             if (!this.user.inCall) return;
             let _payload = new CallPayload(payload);
             let roomId = _payload.roomId;
-    
+            this.callServer.sendMissedCallMessage(_payload.callerId, _payload.calleeId, _payload.callType);
             const _room = this.callServer.getRoom(roomId)
-            if (_room) _room.onCallRejected();
+            if (_room) _room.onCallRejected(_payload.callerId);
             this.user.resetCallInfo();
             this.log("Reject call from user:", _payload.callerId);
         } catch (err) {
@@ -181,20 +181,24 @@ class CallSocket {
             let calleeId = _payload.calleeId;
             if (calleeId.length == 0||callerId.length == 0) return;
             //Check if callee is busy or caller is in another call
-            if (this.user.inCall) {
+            if (this.callServer.checkBusy(callerId)) {
                 this.socket.emit(SocketEvents.CALL_ONGOING);
                 return;
             };
             if (this.callServer.checkBusy(calleeId)) {
                 this.socket.emit(SocketEvents.CALL_BUSY);
+                this.callServer.sendMissedCallMessage(callerId, calleeId, _payload.callType);
                 return;
             }
+            //Reset call info to be sure that the session is resetted successfully
+            this.user.leaveCurrentRoom();
+            this.user.resetCallInfo();
             //Make sure caller is marked as busy
             this.user.inCall = true;
             //Start timeout timer
-            this.user.startTimer(this.callTimeoutCallback(calleeId));
+            this.user.startTimer(this.callTimeoutCallback(calleeId, _payload.callType));
             //Create and join call room
-            const _room = this.callServer.createOneOnOneCallRoom(this.user, calleeId);
+            const _room = this.callServer.createOneOnOneCallRoom(this.user, calleeId, _payload.callType);
             this.joinRoom(_room);
             //Emit incoming call event to callee
             this.callServer.emitToUser(this.socket, calleeId, SocketEvents.CALL_INCOMING, _payload);
@@ -208,6 +212,7 @@ class CallSocket {
             this.user.setActiveSocket(this.socket.id);
             this.log("Calling user:", calleeId);
             this.keepalive();
+            this.callServer.sendCallNotification(calleeId, _payload);
             return true;
         } catch (err) {
             this.logError("createCall", err);
@@ -220,6 +225,7 @@ class CallSocket {
             let calleeId = _payload.calleeId;
             let callerId = _payload.callerId;
             if (calleeId.length > 0) {
+                this.callServer.cancelCallNotification(calleeId);
                 let _callee = this.callServer.getUser(calleeId);
                 let _caller = this.callServer.getUser(callerId);
                 if (_callee) {
@@ -253,6 +259,7 @@ class CallSocket {
         try {
             this.log("Keepalive");
             clearTimeout(this.keepaliveTimeout);
+            this.user.lastKeptaliveTimestamp = Date.now();
             this.keepaliveTimeout = setTimeout(() => {
                 this.terminateCall();
                 this.keepaliveTimeout = null;
@@ -337,12 +344,14 @@ class CallSocket {
         }
     }
 
-    callTimeoutCallback = (calleeId) => {
+    callTimeoutCallback = (calleeId, callType) => {
         try {
             return () => {
                 if (this.user.room)
-                    this.user.room.onCallTimedOut(this.socket.id);
+                    this.user.room.onCallTimedOut(this.user.id);
                 this.callServer.emitToUser(this.socket, calleeId, SocketEvents.CALL_TIMEDOUT);
+                this.callServer.cancelCallNotification(calleeId);
+                this.callServer.sendMissedCallMessage(this.user.id, calleeId, callType);
                 let callee = this.callServer.getUser(calleeId);
                 if (callee) callee.onCallTimedOut();
                 this.stopKeepalive();
