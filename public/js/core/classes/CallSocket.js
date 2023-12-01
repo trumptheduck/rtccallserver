@@ -195,6 +195,7 @@ class CallSocket {
             this.user.resetCallInfo();
             //Make sure caller is marked as busy
             this.user.inCall = true;
+            this.user.lastKeptaliveTimestamp = Date.now();
             //Start timeout timer
             this.user.startTimer(this.callTimeoutCallback(calleeId, _payload.callType));
             //Create and join call room
@@ -207,6 +208,7 @@ class CallSocket {
                 callee = this.callServer.addUser(calleeId, null);
             }
             callee.inCall = true;
+            callee.lastKeptaliveTimestamp = Date.now();
             callee.incomingCall = payload;
             //Set active call socket to this socket
             this.user.setActiveSocket(this.socket.id);

@@ -198,7 +198,7 @@ class CallServer {
             if (_user) {
                 if (!_user.inCall) return false;
                 if (!_user.lastKeptaliveTimestamp) return false;
-                if (Date.now() - _user.lastKeptaliveTimestamp > Constants.KEEPALIVE_TIMEOUT_VALUE) return false;
+                if (Date.now() - _user.lastKeptaliveTimestamp > Constants.CALL_TIMEOUT_VALUE) return false;
                 return true;
             }
             return false;
