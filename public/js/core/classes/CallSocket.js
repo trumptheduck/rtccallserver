@@ -258,13 +258,13 @@ class CallSocket {
     keepalive = () => {
         try {
             this.log("Keepalive");
-            clearTimeout(this.keepaliveTimeout);
+            // clearTimeout(this.keepaliveTimeout);
             this.user.lastKeptaliveTimestamp = Date.now();
-            this.keepaliveTimeout = setTimeout(() => {
-                this.terminateCall();
-                this.keepaliveTimeout = null;
-                this.log("Call is terminated, keepalive failed");
-            }, Constants.KEEPALIVE_TIMEOUT_VALUE);
+            // this.keepaliveTimeout = setTimeout(() => {
+            //     this.terminateCall();
+            //     this.keepaliveTimeout = null;
+            //     this.log("Call is terminated, keepalive failed");
+            // }, Constants.KEEPALIVE_TIMEOUT_VALUE);
         } catch (err) {
             this.logError(err);
         }
