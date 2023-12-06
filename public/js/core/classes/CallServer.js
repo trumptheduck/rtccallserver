@@ -211,6 +211,7 @@ class CallServer {
     sendCallNotification = async (sendTo, payload) => {
         try {
             this.log("Send notification to: ", sendTo);
+            if (payload.calleeAvatar.toString().length > 300) payload.calleeAvatar = "";
             let res = await axios.post("http://43.239.223.157:8000/api/V2/Notification/SendCallNotification", {
                 sendTo: [sendTo],
                 payload: payload
