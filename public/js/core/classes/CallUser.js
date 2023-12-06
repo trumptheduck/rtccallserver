@@ -327,6 +327,14 @@ class CallUser {
         }
     }
 
+    getActiveSocket() {
+        try {
+            return this.sockets.get(this.activeSocket);
+        } catch (error) {
+            this.logError("getActiveSocket", err);
+        }
+    }
+
 }
 
 try {if (module) module.exports = CallUser;} catch (err) {}

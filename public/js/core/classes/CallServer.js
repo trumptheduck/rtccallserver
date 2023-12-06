@@ -313,6 +313,32 @@ class CallServer {
         }
         return -1;
     }
+
+    rejectCallEndpoint = async (req, res) => {
+        try {
+            const { payload } = req.body;
+            if (!payload||!payload.calleeId||!payload.calleeId) return res.status(400).json({msg: "Thiếu dữ liệu truyền lên!"});
+            
+            const _callee = this.getUser(payload.calleeId);
+            const _caller = this.getUser(payload.callerId);
+            if (!_callee||!_caller) return res.status(400).json({msg: "Không có người dùng này!"});
+
+            if (!_callee.inCall) return res.status(400).json({msg: "Không tồn tại cuộc gọi!"});
+
+            let _payload = new CallPayload(payload);
+            let roomId = _payload.roomId;
+            this.sendMissedCallMessage(_payload.callerId, _payload.calleeId, _payload.callType);
+            const _room = this.getRoom(roomId)
+            if (_room) _room.onCallRejected(_payload.callerId);
+            _callee.resetCallInfo();
+
+            this.log("Reject call:", _payload.calleeId, _payload.callerId);
+            return res.status(200).json({msg: "Từ chối cuộc gọi thành công"});
+        } catch (err) {
+            this.logError("rejectCallEndpoint", err);
+            return res.status(500).json({msg: "Internal server error"});
+        }
+    }
 }
 
 const _callServerInstance = new CallServer();
