@@ -341,6 +341,19 @@ class CallServer {
             return res.status(500).json({msg: "Internal server error"});
         }
     }
+
+    resendCallNotificationEndpoint = async (req, res) => {
+        try {
+            const {sendTo, payload} = req.body;
+            if (!sendTo || !payload) return res.status(400).json({msg: "Thiếu dữ liệu truyền lên!"});
+            await this.sendCallNotification(sendTo, payload);
+            this.log("Resend call noti: ", sendTo);
+            return res.status(200).json({msg: "Gửi thông báo thành công"});
+        } catch (err) {
+            this.logError("resendCallNotificationEndpoint", err);
+            return res.status(500).json({msg: "Internal server error"});
+        }
+    }
 }
 
 const _callServerInstance = new CallServer();
