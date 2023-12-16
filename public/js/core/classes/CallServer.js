@@ -354,6 +354,20 @@ class CallServer {
             return res.status(500).json({msg: "Internal server error"});
         }
     }
+
+    confirmNotificationEndpoint = async (req, res) => {
+        try {
+            const {callerId} = req.body;
+            if (!callerId) return res.status(400).json({msg: "Thiếu dữ liệu truyền lên!"});
+            const _user = this.getUser(callerId);
+            if (!_user) return res.status(400).json({msg: "Không có người dùng này!"});
+            _user.confirmNotificationReceived();
+            return res.status(200).json({msg: "Thành công"});
+        } catch (error) {
+            this.logError("confirmNotificationEndpoint", err);
+            return res.status(500).json({msg: "Internal server error"});
+        }
+    }
 }
 
 const _callServerInstance = new CallServer();

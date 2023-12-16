@@ -3,6 +3,7 @@ const Constants = {
     DISCONNECT_TIMEOUT_VALUE: 0,
     DISPOSE_TIMEOUT_VALUE: 120000,
     KEEPALIVE_TIMEOUT_VALUE: 15000,
+    RESEND_NOTIFICATION_INTERVAL: 9000,
     WEBRTC_PEER_CONFIGURATION: { 
         "iceServers": [{ "url": "stun:stun.1.google.com:19302" }] 
     },

@@ -214,7 +214,7 @@ class CallSocket {
             this.user.setActiveSocket(this.socket.id);
             this.log("Calling user:", calleeId);
             this.keepalive();
-            this.callServer.sendCallNotification(calleeId, _payload);
+            this.user.attemptToSendCallNotification(calleeId, _payload);
             return true;
         } catch (err) {
             this.logError("createCall", err);
