@@ -25,6 +25,7 @@ class CallUser {
 
         this.lastKeptaliveTimestamp = null;
         this.resendNotificationTimer = null;
+        this.resendNotificationTimeout = null;
 
         if (socket) {
             this.addSocket(socket);
@@ -284,6 +285,7 @@ class CallUser {
             this.waitingTimer = null;
 
             clearInterval(this.resendNotificationTimer);
+            clearTimeout(this.resendNotificationTimeout);
             this.log("Stopped resend notification (Resetted)");
 
             this.log("Resetting call info...");
@@ -343,11 +345,13 @@ class CallUser {
         try {
             this.callServer.sendCallNotification(calleeId, payload);
             clearInterval(this.resendNotificationTimer);
+            clearTimeout(this.resendNotificationTimeout);
             let count = 0;
             this.resendNotificationTimer = setInterval(() => {
                 if (count >= 2) {
                     this.log("Stopped resend notification (Limit exceeded)");
                     clearInterval(this.resendNotificationTimer);
+                    clearTimeout(this.resendNotificationTimeout);
                 } else {
                     this.log("Resend call notification | Count: ", count, " | Send to: ", calleeId);
                     this.callServer.sendCallNotification(calleeId, payload);
@@ -355,7 +359,7 @@ class CallUser {
                 count++;
             }, Constants.RESEND_NOTIFICATION_INTERVAL);
             const _interval = this.resendNotificationTimer;
-            setTimeout(()=>{
+            this.resendNotificationTimeout = setTimeout(()=>{
                 this.log("Stopped resend notification (Timed out)");
                 clearInterval(_interval);
             }, Constants.CALL_TIMEOUT_VALUE);
@@ -367,6 +371,7 @@ class CallUser {
     confirmNotificationReceived() {
         try {
             clearInterval(this.resendNotificationTimer);
+            clearTimeout(this.resendNotificationTimeout);
             this.log("Stopped resend notification (Received)");
         } catch (err) {
             this.logError("confirmNotificationReceived", err);

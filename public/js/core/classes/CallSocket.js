@@ -139,6 +139,7 @@ class CallSocket {
                 clearTimeout(caller.waitingTimer);
                 caller.inCall = true;
                 this.user.inCall = true;
+                caller.confirmNotificationReceived();
                 //Add user to room and room socket
                 _room.join(this.user);
                 this.joinRoom(_room);
@@ -169,6 +170,8 @@ class CallSocket {
             if (_room) _room.onCallRejected(_payload.callerId);
             this.user.resetCallInfo();
             this.log("Reject call from user:", _payload.callerId);
+            const caller = this.callServer.getUser(_payload.callerId)
+            caller.confirmNotificationReceived();
         } catch (err) {
             this.logError("rejectCall", err);
         }
@@ -235,6 +238,7 @@ class CallSocket {
                 }
                 if (_caller) {
                     _caller.onCallEnded();
+                    _caller.confirmNotificationReceived();
                 }
             };
             if (this.user.room) {
