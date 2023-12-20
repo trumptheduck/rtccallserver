@@ -284,9 +284,7 @@ class CallUser {
             this.incomingCall = null;
             this.waitingTimer = null;
 
-            clearInterval(this.resendNotificationTimer);
-            clearTimeout(this.resendNotificationTimeout);
-            this.log("Stopped resend notification (Resetted)");
+            this.stopResendNotification("Resetted");
 
             this.log("Resetting call info...");
         } catch (err) {
@@ -349,9 +347,7 @@ class CallUser {
             let count = 0;
             this.resendNotificationTimer = setInterval(() => {
                 if (count >= 2) {
-                    this.log("Stopped resend notification (Limit exceeded)");
-                    clearInterval(this.resendNotificationTimer);
-                    clearTimeout(this.resendNotificationTimeout);
+                    this.stopResendNotification("Limit exceeded")
                 } else {
                     this.log("Resend call notification | Count: ", count, " | Send to: ", calleeId);
                     this.callServer.sendCallNotification(calleeId, payload);
@@ -360,23 +356,27 @@ class CallUser {
             }, Constants.RESEND_NOTIFICATION_INTERVAL);
             const _interval = this.resendNotificationTimer;
             this.resendNotificationTimeout = setTimeout(()=>{
-                this.log("Stopped resend notification (Timed out)");
-                clearInterval(_interval);
+                this.stopResendNotification("Timed out");
             }, Constants.CALL_TIMEOUT_VALUE);
         } catch (err) {
             this.logError("attemptToSendCallNotification", err);
         }
     }
 
-    confirmNotificationReceived() {
+    confirmNotificationReceived = () => {
         try {
-            clearInterval(this.resendNotificationTimer);
-            clearTimeout(this.resendNotificationTimeout);
-            this.log("Stopped resend notification (Received)");
+            this.stopResendNotification("Received");
         } catch (err) {
             this.logError("confirmNotificationReceived", err);
         }
     }
+
+    stopResendNotification = (reason = "") => {
+        clearInterval(this.resendNotificationTimer);
+        clearTimeout(this.resendNotificationTimeout);
+        this.log(`Stopped resend notification (${reason})`);
+    };
+
 
 }
 

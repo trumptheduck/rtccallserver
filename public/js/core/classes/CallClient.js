@@ -155,6 +155,7 @@ class CallClient {
             roomId: _caller.userId,
             callerId: _caller.userId,
             callerName: _caller.userName,
+            callerAvatar: _caller.userAvatar,
             calleeId: _callee.userId,
             calleeName: _callee.userName,
             calleeAvatar: _callee.userAvatar,
