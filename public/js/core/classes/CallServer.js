@@ -55,6 +55,12 @@ class CallServer {
         try {
             socket.on(SocketEvents.USER_LOGIN, this.loginHandler(socket));
             socket.on(SocketEvents.SOCKET_DISCONNECTED, this.logoutHandler(socket));
+            socket.on(SocketEvents.SERVICE_STATUS, (callback) => {
+                callback({
+                    sfuAvailable: !this.sfuService.isOverloaded,
+                    sfuLoad: this.sfuService.activeConsumers + "/" + this.sfuService.consumerLimit
+                })
+            })
             socket.on("test:users", () => {
                 socket.emit("userdata",(()=>{
                     let userData = [];
