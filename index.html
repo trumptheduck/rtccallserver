@@ -10,15 +10,18 @@
       crossorigin="anonymous"
     ></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="/static/js/lib/mediasoup-client.min.js"></script>
     <script src="/static/js/common/constants/SocketEvents.js"></script>
     <script src="/static/js/common/constants/CallState.js"></script>
     <script src="/static/js/common/constants/CallType.js"></script>
     <script src="/static/js/common/constants/Constants.js"></script>
     <script src="/static/js/common/constants/CallElements.js"></script>
+    <script src="/static/js/common/constants/CallProtocol.js"></script>
     <script src="/static/js/core/classes/CallEventListener.js"></script>
     <script src="/static/js/core/classes/User.js"></script>
     <script src="/static/js/core/classes/CallPayload.js"></script>
     <script src="/static/js/core/classes/CallClient.js"></script>
+    <script src="/static/js/core/classes/SFUApplication.js"></script>
     <script>
       const { RTCPeerConnection, RTCSessionDescription } = window;
       const socket = io("https://localhost", {
@@ -50,6 +53,7 @@
           this.localVideoStream = null;
           this.remoteVideoStream = null;
           this.removeAudioStream = null;
+          this.sfu = new SFUApplication();
 
           this.peerConnection = new RTCPeerConnection({
             "iceServers": [
@@ -101,13 +105,27 @@
           };
         }
 
+        setRemoteStream(stream) {
+          const remoteVideo = document.getElementById(
+              CallElements.remoteVideo
+          );
+          if (remoteVideo) {
+            remoteVideo.srcObject = stream;
+          }
+          this.callClient.markCallAsReady();
+        }
+
         loginWithToken = (token) => {
           this.callClient.login(id);
         };
 
-        loginWithId = (id) => {
-          this.callClient.login(id);
+        loginWithId = (id, callback) => {
+          this.callClient.login(id, callback);
         };
+
+        getRouterCapabilities() {
+          return this.callClient.getRouterCapabilities();
+        }
 
         initMediaObjects = async () => {
           this.localVideoStream = await navigator.mediaDevices.getUserMedia(
@@ -121,6 +139,15 @@
             this.peerConnection.addTrack(track, this.localVideoStream);
           });
         };
+
+        getMediaObjects = async () => {
+          this.localVideoStream = await navigator.mediaDevices.getUserMedia(
+            Constants.VIDEO_CONSTRAINTS
+          );
+          console.log(this.localVideoStream.getTracks());
+          const localVideo = document.getElementById(CallElements.localVideo);
+          localVideo.srcObject = this.localVideoStream;
+        }
 
         registerElements = () => {
             this.ui = {
@@ -274,23 +301,60 @@
           }
         })
 
+        // app.initMediaObjects().then(() => {
+        //   app.getCallUser(USER_ID).then(caller => {
+        //     app.ui.caller.userName.innerText = caller.userName;
+        //     app.loginWithId(caller);
+        //     if (CALLEE_ID) {
+        //       console.log(CALLEE_ID);
+        //       app.getCallUser(CALLEE_ID).then(callee => {
+        //         app.callClient.createCall(
+        //           callee,
+        //           CALL_TYPE ? CALL_TYPE : CallType.VIDEO
+        //         );
+        //       });
+        //     } else if (ACCEPT_INCOMING && ACCEPT_INCOMING == 1) {
+        //       app.callClient.acceptNextCall();
+        //     }
+        //     app.registerFunctions();
+        //     })         
+        // });
+
+        if (ACCEPT_INCOMING && ACCEPT_INCOMING == 1) {
+          app.callClient.acceptNextCall();
+        }
         app.initMediaObjects().then(() => {
           app.getCallUser(USER_ID).then(caller => {
             app.ui.caller.userName.innerText = caller.userName;
-            app.loginWithId(caller);
-            if (CALLEE_ID) {
-              console.log(CALLEE_ID);
-              app.getCallUser(CALLEE_ID).then(callee => {
-                app.callClient.createCall(
-                  callee,
-                  CALL_TYPE ? CALL_TYPE : CallType.VIDEO
-                );
-              });
-            } else if (ACCEPT_INCOMING && ACCEPT_INCOMING == 1) {
-              app.callClient.acceptNextCall();
-            }
+            app.loginWithId(caller, (data) => {
+                app.getRouterCapabilities().then(routerParams => {
+                  const {capabilities} = routerParams;
+                  console.log(capabilities);
+                  app.sfu.loadDevice(capabilities).then(()=>{
+                    if (CALLEE_ID) {
+                      console.log(CALLEE_ID);
+                      if (false) {
+                        app.getCallUser(CALLEE_ID).then(callee => {
+                          app.callClient.createCall(
+                            callee,
+                            CALL_TYPE ? CALL_TYPE : CallType.VIDEO,
+                            CallProtocol.SFU
+                          );
+                        });
+                      } else {
+                        app.getCallUser(CALLEE_ID).then(callee => {
+                          app.callClient.createCall(
+                            callee,
+                            CALL_TYPE ? CALL_TYPE : CallType.VIDEO
+                          );
+                        });
+                      }
+                    } 
+                  });
+                });
+            });
             app.registerFunctions();
-            })         
+            })      
         });
       };
     </script>

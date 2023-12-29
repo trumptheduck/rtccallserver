@@ -1,5 +1,6 @@
 const CallPayload = require("./CallPayload");
 const CallServer = require("./CallServer");
+const SFUService = require("./SFUService");
 const SocketEvents = require("../../common/constants/SocketEvents");
 const CallUser = require("./CallUser");
 const Constants = require("../../common/constants/Constants");
@@ -27,6 +28,7 @@ class CallSocket {
         this.socket = socket;
         this.user = user;
         this.callServer = CallServer.getInstance();
+        this.sfuService = SFUService.getInstance();
         this.keepaliveTimeout = null;
     }
 
@@ -49,6 +51,16 @@ class CallSocket {
             this.socket.on(SocketEvents.CALL_SEND_OFFER, this.sendOffer);
             this.socket.on(SocketEvents.CALL_SEND_ANSWER, this.sendAnswer);
             this.socket.on(SocketEvents.CALL_SEND_CANDIDATE, this.sendCandidate);
+
+            this.socket.on(SocketEvents.SFU_GET_RTP_CAPABILITIES, this.getRouterRtpCapabilities);
+            this.socket.on(SocketEvents.SFU_PTRANSPORT_CREATE, this.createProducerTransport);
+            this.socket.on(SocketEvents.SFU_CTRANSPORT_CREATE, this.createConsumerTransport);
+            this.socket.on(SocketEvents.SFU_PTRANSPORT_CONNECT, this.connectProducerTransport);
+            this.socket.on(SocketEvents.SFU_CTRANSPORT_CONNECT, this.connectConsumerTransport);
+            this.socket.on(SocketEvents.SFU_PRODUCE, this.produce);
+            this.socket.on(SocketEvents.SFU_CONSUME, this.consume);
+            this.socket.on(SocketEvents.SFU_RESUME, this.resume);
+
             this.socket.on(SocketEvents.CALL_CHANGE_MEDIA_DEVICES, this.changeMediaDevices);
             this.socket.on(SocketEvents.CALL_CLIENT_READY, this.onUserCallReady);
             this.socket.on(SocketEvents.CALL_CHECK_CALLEE_STATUS, this.checkCalleeStatus);
@@ -64,7 +76,10 @@ class CallSocket {
     onLogin = (user) => {
         try {
             this.log("Logged in");
-            this.socket.emit(SocketEvents.USER_LOGGEDIN, user);
+            this.socket.emit(SocketEvents.USER_LOGGEDIN, {user, serviceStatus: {
+                sfuAvailable: !this.sfuService.isOverloaded,
+                sfuLoad: this.sfuService.activeConsumers + "/" + this.sfuService.consumerLimit
+            }});
         } catch (err) {
             this.logError("onLogin", err);
         }
@@ -94,6 +109,10 @@ class CallSocket {
         }
     }
 
+
+    /**
+     * Events used for P2P calls
+     */
     sendOffer = (data) => {
         try {
             this.log("Send offer");
@@ -120,6 +139,94 @@ class CallSocket {
             this.logError("sendCandidate", err);
         }
     }
+
+    /**
+     * Events used for SFU calls
+     */
+
+    getRouterRtpCapabilities = (data) => {
+        try {
+            this.log("getRouterRtpCapabilities");
+            this.socket.emit(SocketEvents.SFU_RECEIVE_RTP_CAPABILITIES, {capabilities: this.sfuService.router.rtpCapabilities});
+        } catch (err) {
+            this.logError("getRouterRtpCapabilities")
+        }
+    }
+
+    createProducerTransport = async (data) => {
+        try {
+            const { transport, params } = await this.sfuService.createWebRtcTransport();
+            this.user.producerTransport = transport;
+            this.socket.emit(SocketEvents.SFU_PTRANSPORT_CREATED, {params});
+        } catch (err) {
+            this.logError("createProducerTransport")
+        }
+    }
+
+    createConsumerTransport = async (data) => {
+        try {
+            const { transport, params } = await this.sfuService.createWebRtcTransport();
+            this.user.consumerTransport = transport;
+            this.socket.emit(SocketEvents.SFU_CTRANSPORT_CREATED, {params});
+        } catch (err) {
+            this.logError("createConsumerTransport")
+        }
+    }
+
+    connectProducerTransport = async (data) => {
+        try {
+            await this.user.producerTransport.connect({ dtlsParameters: data.dtlsParameters });
+            this.socket.emit(SocketEvents.SFU_PTRANSPORT_CONNECTED);
+        } catch (err) {
+            this.logError("connectProducerTransport")
+        }
+    }
+
+    connectConsumerTransport = async (data) => {
+        try {
+            await this.user.consumerTransport.connect({ dtlsParameters: data.dtlsParameters });
+            this.socket.emit(SocketEvents.SFU_CTRANSPORT_CONNECTED);
+        } catch (err) {
+            this.logError("connectConsumerTransport")
+        }
+    }
+
+    produce = async (data) => {
+        try {
+            const {kind, rtpParameters} = data;
+            this.user.producer = await this.user.producerTransport.produce({ kind, rtpParameters });
+            this.socket.emit(SocketEvents.SFU_PRODUCING, { id: this.user.producer.id });
+            this.roomEmit(SocketEvents.SFU_NEW_PRODUCER, { id: this.user.id })
+        } catch (err) {
+            this.logError("produce")
+        }
+    }
+
+    consume = async (data) => {
+        try {
+            const {rtpCapabilities, userId} = data
+            this.log(data);
+            const _user = this.callServer.getUser(userId)
+            if (_user) {
+                const {consumer, params} = await this.sfuService.createConsumer(_user.producer, this.user.consumerTransport, rtpCapabilities);
+                this.user.consumerParams = params;
+                this.user.consumer = consumer;
+                this.socket.emit(SocketEvents.SFU_CONSUMING, this.user.consumerParams);
+            }
+        } catch (err) {
+            this.logError("consume")
+        }
+    }
+
+    resume = async (data) => {
+        try {
+            await this.user.consumer.resume();
+        } catch (err) {
+            this.logError("resume")
+        }
+    }
+
+
 
     acceptCall = (payload) => {
         try {

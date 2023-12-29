@@ -4,6 +4,7 @@ const SocketEvents = require("../../common/constants/SocketEvents");
 const { default: axios } = require("axios");
 const Constants = require("../../common/constants/Constants");
 const CallPayload = require("./CallPayload");
+const SFUService = require("./SFUService");
 
 function millisecondToTime(duration) {
     var milliseconds = Math.floor((duration % 1000) / 100),
@@ -32,6 +33,7 @@ class CallServer {
         if (this.instance) throw Error("Can't create more than one instance of CallServer");
         this.rooms = new Map();
         this.users = new Map();
+        this.sfu = SFUService.getInstance();
     }
 
     log(...args) {
@@ -46,6 +48,7 @@ class CallServer {
         this.io = io;
         this.io.on("connection", (socket) => this.registerEvents(socket));
         this.log("SERVER STARTED!")
+        this.sfu.init().then(()=>{this.log("SFU INITIALIZED!")})
     }
 
     registerEvents(socket) {

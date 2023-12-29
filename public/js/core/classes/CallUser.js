@@ -1,12 +1,15 @@
 const CallSocket = require("./CallSocket");
 const CallServer = require("./CallServer");
+const SFUService = require("./SFUService");
 const CallType = require("../../common/constants/CallType");
 const SocketEvents = require("../../common/constants/SocketEvents");
 const Constants = require("../../common/constants/Constants");
+const CallProtocol = require("../../common/constants/CallProtocol");
 
 class CallUser {
     constructor(socket, userId) {
         this.callServer = CallServer.getInstance();
+        this.sfuService = SFUService.getInstance();
 
         this.id = userId;
         this.sockets = new Map();
@@ -26,6 +29,13 @@ class CallUser {
         this.lastKeptaliveTimestamp = null;
         this.resendNotificationTimer = null;
         this.resendNotificationTimeout = null;
+
+        this.consumerTransport = null;
+        this.producerTransport = null;
+        this.consumerParams = null;
+        this.producer = null;
+        this.consumer = null;
+        this.callProtocol = CallProtocol.PEERS;
 
         if (socket) {
             this.addSocket(socket);
@@ -275,6 +285,10 @@ class CallUser {
 
     resetCallInfo = () => {
         try {
+            if (this.consumer) {
+                this.sfuService.removeConsumer(this.consumer.id);
+            }
+
             this.room = null;
     
             this.inCall = false;
@@ -283,6 +297,13 @@ class CallUser {
             this.callType = CallType.NONE;
             this.incomingCall = null;
             this.waitingTimer = null;
+
+            this.consumerTransport = null;
+            this.producerTransport = null;
+            this.consumerParams = null;
+            this.producer = null;
+            this.consumer = null;
+            this.callProtocol = CallProtocol.PEERS;
 
             this.stopResendNotification("Resetted");
 
@@ -298,9 +319,9 @@ class CallUser {
             this.log(`All sockets disconnected, awaiting reconnection...`);
             clearTimeout(this.disposeTimer);
             this.disposeTimer = setTimeout(() => {
+                this.resetCallInfo();
                 this.callServer.removeUser(this.id);
                 this.log(`User removed`);
-                console.log(this.callServer.users.size);
             }, Constants.DISPOSE_TIMEOUT_VALUE);
         } catch (err) {
             this.logError("onAllSocketsDisconnected", err);
@@ -346,13 +367,13 @@ class CallUser {
             clearTimeout(this.resendNotificationTimeout);
             let count = 0;
             this.resendNotificationTimer = setInterval(() => {
-                if (count >= 2) {
-                    this.stopResendNotification("Limit exceeded")
-                } else {
-                    this.log("Resend call notification | Count: ", count, " | Send to: ", calleeId);
-                    this.callServer.sendCallNotification(calleeId, payload);
-                }
-                count++;
+                // if (count >= 2) {
+                //     this.stopResendNotification("Limit exceeded")
+                // } else {
+                //     this.log("Resend call notification | Count: ", count, " | Send to: ", calleeId);
+                //     this.callServer.sendCallNotification(calleeId, payload);
+                // }
+                // count++;
             }, Constants.RESEND_NOTIFICATION_INTERVAL);
             const _interval = this.resendNotificationTimer;
             this.resendNotificationTimeout = setTimeout(()=>{
