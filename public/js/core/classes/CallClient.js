@@ -1,3 +1,7 @@
+async function sleep(ms) {
+return new Promise((r) => setTimeout(() => r(), ms));
+}
+
 class CallClient {
     constructor(socket) {
         this.socket = socket;
@@ -291,6 +295,10 @@ class CallClient {
         this.socket.emit(SocketEvents.SFU_CONSUME, { rtpCapabilities, userId, kind });
         this.socket.once(SocketEvents.SFU_CONSUMING, async (params) => {
             let track = await this.app.sfu.subscribe(this.recvTransport, params);
+            while (this.recvTransport?.connectionState !== 'connected') {
+                console.log(this.recvTransport?.connectionState);
+                await sleep(100);
+            }
             this.socket.emit(SocketEvents.SFU_RESUME, kind);
             this.app.setRemoteStream(track);
         })
