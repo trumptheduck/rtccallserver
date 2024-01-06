@@ -270,7 +270,6 @@ class CallClient {
                     break;
             
                   case 'connected':
-                    this.resume('connected');
                     break;
             
                   case 'failed':
@@ -292,21 +291,9 @@ class CallClient {
         this.socket.emit(SocketEvents.SFU_CONSUME, { rtpCapabilities, userId, kind });
         this.socket.once(SocketEvents.SFU_CONSUMING, async (params) => {
             let track = await this.app.sfu.subscribe(this.recvTransport, params);
-            this.resume(kind);
+            this.socket.emit(SocketEvents.SFU_RESUME, kind);
             this.app.setRemoteStream(track);
         })
-    }
-
-    resume = (event) => {
-        this.resumeEventStack.add(event);
-        console.log(this.resumeEventStack, event);
-        if (this.resumeEventStack.has("audio")
-            &&this.resumeEventStack.has("video")
-            &&this.resumeEventStack.has("connected")
-            ) {
-            this.resumeEventStack.clear();
-            this.socket.emit(SocketEvents.SFU_RESUME);
-        }
     }
 
     acceptNextCall = () => {

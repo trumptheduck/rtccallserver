@@ -227,12 +227,18 @@ class CallSocket {
         }
     }
 
-    resume = async (data) => {
+    resume = async (kind) => {
         try {
-            if (this.user.videoConsumer)
+            if (kind=="video"&&this.user.videoConsumer) {
                 await this.user.videoConsumer.resume();
-            if (this.user.audioConsumer)
+                this.log("Resumed video");
+            }
+                
+            if (kind=="audio"&&this.user.audioConsumer) {
                 await this.user.audioConsumer.resume();
+                this.log("Resumed audio");
+            }
+            
         } catch (err) {
             this.logError("resume")
         }
