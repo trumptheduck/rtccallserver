@@ -39,18 +39,13 @@ class CallClient {
     }
 
     emitAsync(event, ...args) {
-        console.log(args);
+        console.log("Emitted:", event, args);
         if (args.length == 0) args = [{}];
         return new Promise((resolve) => {
             this.socket.emit(event, ...args, function(...data) {
+                console.log("Callback:", event, data);
                 resolve(...data);
             })
-        })
-    }
-
-    eventAsync(transport, event) {
-        return new Promise((resolve) => {
-            transport.on(event, resolve);
         })
     }
 
@@ -302,6 +297,10 @@ class CallClient {
         const rtpCapabilities = this.app.sfu.device.rtpCapabilities;
         const params = await this.emitAsync(SocketEvents.SFU_CONSUME, { rtpCapabilities, userId, kind });
         let track = await this.app.sfu.subscribe(this.recvTransport, params);
+        while (this.recvTransport.connectionState !== 'connected') {
+            await sleep(100);
+            console.log("Waiting for connection", this.recvTransport.connectionState);
+        }
         this.socket.emit(SocketEvents.SFU_RESUME, kind);
         this.app.setRemoteStream(track);
     }
