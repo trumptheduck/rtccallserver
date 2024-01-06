@@ -28,8 +28,8 @@ class SFUApplication {
       const videoTrack = stream.getVideoTracks()[0];
       const audioTrack = stream.getAudioTracks()[0];
       const encodings = [
-        { maxBitrate: 100000 },
-        { maxBitrate: 300000 },
+        { maxBitrate: 500000 },
+        { maxBitrate: 700000 },
         { maxBitrate: 900000 },
       ];
       const codecOptions = {
