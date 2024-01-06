@@ -144,54 +144,54 @@ class CallSocket {
      * Events used for SFU calls
      */
 
-    getRouterRtpCapabilities = (data) => {
+    getRouterRtpCapabilities = (data, callback) => {
         try {
             this.log("getRouterRtpCapabilities");
-            this.socket.emit(SocketEvents.SFU_RECEIVE_RTP_CAPABILITIES, {capabilities: this.sfuService.router.rtpCapabilities});
+            callback({capabilities: this.sfuService.router.rtpCapabilities});
         } catch (err) {
-            this.logError("getRouterRtpCapabilities")
+            this.logError("getRouterRtpCapabilities", err)
         }
     }
 
-    createProducerTransport = async (data) => {
+    createProducerTransport = async (data, callback) => {
         try {
             const { transport, params } = await this.sfuService.createWebRtcTransport();
             this.user.producerTransport = transport;
-            this.socket.emit(SocketEvents.SFU_PTRANSPORT_CREATED, {params});
+            callback({params});
         } catch (err) {
-            this.logError("createProducerTransport")
+            this.logError("createProducerTransport", err)
         }
     }
 
-    createConsumerTransport = async (data) => {
+    createConsumerTransport = async (data, callback) => {
         try {
             const { transport, params } = await this.sfuService.createWebRtcTransport();
             this.user.consumerTransport = transport;
-            this.socket.emit(SocketEvents.SFU_CTRANSPORT_CREATED, {params});
+            callback({params});
         } catch (err) {
-            this.logError("createConsumerTransport")
+            this.logError("createConsumerTransport", err)
         }
     }
 
-    connectProducerTransport = async (data) => {
+    connectProducerTransport = async (data, callback) => {
         try {
             await this.user.producerTransport.connect({ dtlsParameters: data.dtlsParameters });
-            this.socket.emit(SocketEvents.SFU_PTRANSPORT_CONNECTED);
+            callback();
         } catch (err) {
-            this.logError("connectProducerTransport")
+            this.logError("connectProducerTransport", err)
         }
     }
 
-    connectConsumerTransport = async (data) => {
+    connectConsumerTransport = async (data, callback) => {
         try {
             await this.user.consumerTransport.connect({ dtlsParameters: data.dtlsParameters });
-            this.socket.emit(SocketEvents.SFU_CTRANSPORT_CONNECTED);
+            callback();
         } catch (err) {
-            this.logError("connectConsumerTransport")
+            this.logError("connectConsumerTransport", err)
         }
     }
 
-    produce = async (data) => {
+    produce = async (data, callback) => {
         try {
             const {kind, rtpParameters} = data;
             let producer = await this.user.producerTransport.produce({ kind, rtpParameters });
@@ -200,14 +200,14 @@ class CallSocket {
             } else {
                 this.user.audioProducer = producer;
             }
-            this.socket.emit(SocketEvents.SFU_PRODUCING, { id: producer.id });
+            callback({ id: producer.id });
             this.roomEmit(SocketEvents.SFU_NEW_PRODUCER, { id: this.user.id, kind: kind })
         } catch (err) {
-            this.logError("produce")
+            this.logError("produce", err)
         }
     }
 
-    consume = async (data) => {
+    consume = async (data, callback) => {
         try {
             const {rtpCapabilities, userId, kind} = data
             this.log(data);
@@ -220,10 +220,10 @@ class CallSocket {
                 } else {
                     this.user.audioConsumer = consumer;
                 }
-                this.socket.emit(SocketEvents.SFU_CONSUMING, params);
+                callback(params);
             }
         } catch (err) {
-            this.logError("consume")
+            this.logError("consume", err)
         }
     }
 
@@ -240,7 +240,7 @@ class CallSocket {
             }
             
         } catch (err) {
-            this.logError("resume")
+            this.logError("resume", err)
         }
     }
 

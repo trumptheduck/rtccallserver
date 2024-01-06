@@ -38,6 +38,22 @@ class CallClient {
         this._csEvents.invoke(state);
     }
 
+    emitAsync(event, ...args) {
+        console.log(args);
+        if (args.length == 0) args = [{}];
+        return new Promise((resolve) => {
+            this.socket.emit(event, ...args, function(...data) {
+                resolve(...data);
+            })
+        })
+    }
+
+    eventAsync(transport, event) {
+        return new Promise((resolve) => {
+            transport.on(event, resolve);
+        })
+    }
+
     addCallStateListener(callback) {
         this._csEvents.addListener(callback);
     }
@@ -60,8 +76,6 @@ class CallClient {
         this.socket.on(SocketEvents.CALL_RECEIVE_CANDIDATE, this.onReceiveCandidate);
         this.socket.on(SocketEvents.SOCKET_RECONNECTED, this.onReconnect);
         this.socket.on(SocketEvents.CALL_UPDATE_MEDIA_DEVICES_STATUS, this.onMediaStatusChange);
-
-        this.socket.on(SocketEvents.SFU_PTRANSPORT_CREATED, this.onProducerTransportCreated);
         this.socket.on(SocketEvents.SFU_NEW_PRODUCER, this.onNewProducer);
     }
 
@@ -197,48 +211,38 @@ class CallClient {
     }
 
     getRouterCapabilities = async () => {
-        this.socket.emit(SocketEvents.SFU_GET_RTP_CAPABILITIES);
-        return new Promise((resolve, reject) => {
-            this.socket.once(SocketEvents.SFU_RECEIVE_RTP_CAPABILITIES, resolve);
-        });
+        return this.emitAsync(SocketEvents.SFU_GET_RTP_CAPABILITIES);
     }
 
-    connectSFUCall() {
-        if (this.app.sfu.device) {
-            this.socket.emit(SocketEvents.SFU_PTRANSPORT_CREATE, {
-                forceTcp: false,
-                rtpCapabilities: this.app.sfu.device.rtpCapabilities,
-            });
-        } else {
-            this.app.sfu.onDeviceReady = (device) => {
-                this.socket.emit(SocketEvents.SFU_PTRANSPORT_CREATE, {
-                    forceTcp: false,
-                    rtpCapabilities: device.rtpCapabilities,
-                });
-            }
+    connectSFUCall = async () => {
+        while (!this.app.sfu.device) {
+            await sleep(100);
         }
-        
+        if (!this.sendTransport)
+            this.sendTransport = await this.createSendTransport(this.app.sfu.device.rtpCapabilities);
+        this.app.sfu.publish(this.sendTransport, this.app.localVideoStream);
     }
 
-    onProducerTransportCreated = async (data) => {
-        let {params} = data;
-        this.sendTransport = await this.app.sfu.createSendTransport(params);
-        this.sendTransport.on('connect', async ({ dtlsParameters }, callback, errback) => {
-            this.socket.emit(SocketEvents.SFU_PTRANSPORT_CONNECT, { dtlsParameters });
-            this.socket.once(SocketEvents.SFU_PTRANSPORT_CONNECTED,() => {
-                callback();
-            });
+    createSendTransport = async (rtpCapabilities) => {
+        let pTransportData = await this.emitAsync(SocketEvents.SFU_PTRANSPORT_CREATE, {
+            forceTcp: false,
+            rtpCapabilities: rtpCapabilities,
+        })
+        let sendTransport = await this.app.sfu.createSendTransport(pTransportData.params);
+
+        sendTransport.on('connect', async ({ dtlsParameters }, callback, errback) => {
+            await this.emitAsync(SocketEvents.SFU_PTRANSPORT_CONNECT, { dtlsParameters });
+            callback();
         });
-        this.sendTransport.on('produce', async ({ kind, rtpParameters }, callback, errback) => {
-            this.socket.emit(SocketEvents.SFU_PRODUCE, {
-                transportId: this.sendTransport.id,
+        sendTransport.on('produce', async ({ kind, rtpParameters }, callback, errback) => {
+            const pcdata = await this.emitAsync(SocketEvents.SFU_PRODUCE, {
+                transportId: sendTransport.id,
                 kind,
                 rtpParameters,
             });
-            this.socket.once(SocketEvents.SFU_PRODUCING, (data) => callback({id: data.id}));
+           callback({id: pcdata.id});
         });
-        
-        this.sendTransport.on('connectionstatechange', (state) => {
+        sendTransport.on('connectionstatechange', (state) => {
             console.log("sendTransport", state);
             switch (state) {
                 case 'connecting':
@@ -248,61 +252,58 @@ class CallClient {
                     break;
             
                 case 'failed':
-                    transport.close();
+                    sendTransport.close();
                     break;
 
                 default: return;
             }
         });
+        return sendTransport;
+    }
 
-        this.socket.emit(SocketEvents.SFU_CTRANSPORT_CREATE);
-        this.socket.once(SocketEvents.SFU_CTRANSPORT_CREATED, async (data) => {
-            let {params} = data;
-            this.recvTransport = await this.app.sfu.createRecvTransport(params);
-            this.isReadyToConsume = true;
-            this.recvTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
-                console.log("recvTransportConnected");
-                this.socket.emit(SocketEvents.SFU_CTRANSPORT_CONNECT, {
-                  transportId: this.recvTransport.id,
-                  dtlsParameters
-                });
-                this.socket.once(SocketEvents.SFU_CTRANSPORT_CONNECTED, callback) 
+    createRecvTransport = async () => {
+        let cTransportData = await this.emitAsync(SocketEvents.SFU_CTRANSPORT_CREATE);
+        let recvTransport = await this.app.sfu.createRecvTransport(cTransportData.params);
+        recvTransport.on('connect', async ({ dtlsParameters }, callback, errback) => {
+            console.log("recvTransportConnected");
+            await this.emitAsync(SocketEvents.SFU_CTRANSPORT_CONNECT, {
+              transportId: recvTransport.id,
+              dtlsParameters
             });
-            this.recvTransport.on('connectionstatechange', async (state) => {
-                console.log("recvTransport", state);
-                switch (state) {
-                  case 'connecting':
-                    break;
-            
-                  case 'connected':
-                    break;
-            
-                  case 'failed':
-                    this.recvTransport.close();
-                    break;
-            
-                  default: return;
-                }
-            });
-        })
-            
-        this.app.sfu.publish(this.sendTransport, this.app.localVideoStream);
+            callback();
+        });
+        recvTransport.on('connectionstatechange', async (state) => {
+            console.log("recvTransport", state);
+            switch (state) {
+              case 'connecting':
+                break;
+        
+              case 'connected':
+                break;
+        
+              case 'failed':
+                recvTransport.close();
+                break;
+              default: return;
+            }
+        });
+        return recvTransport;
     }
 
     onNewProducer = async (data) => {
-        while (!this.isReadyToConsume) {
+        while (!this.app.sfu.device) {
             await sleep(100);
-            console.log("waiting for transport");
         }
+        if (!this.recvTransport)
+            this.recvTransport = await this.createRecvTransport();
+
         let userId = data.id;
         let kind = data.kind;
         const rtpCapabilities = this.app.sfu.device.rtpCapabilities;
-        this.socket.emit(SocketEvents.SFU_CONSUME, { rtpCapabilities, userId, kind });
-        this.socket.once(SocketEvents.SFU_CONSUMING, async (params) => {
-            let track = await this.app.sfu.subscribe(this.recvTransport, params);
-            this.socket.emit(SocketEvents.SFU_RESUME, kind);
-            this.app.setRemoteStream(track);
-        })
+        const params = await this.emitAsync(SocketEvents.SFU_CONSUME, { rtpCapabilities, userId, kind });
+        let track = await this.app.sfu.subscribe(this.recvTransport, params);
+        this.socket.emit(SocketEvents.SFU_RESUME, kind);
+        this.app.setRemoteStream(track);
     }
 
     acceptNextCall = () => {
