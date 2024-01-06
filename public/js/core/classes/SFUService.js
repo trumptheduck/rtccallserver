@@ -111,7 +111,7 @@ class SFUService {
               _consumer = await transport.consume({
                 producerId: producer.id,
                 rtpCapabilities,
-                paused: producer.kind === 'video',
+                paused: true,
               });
             } catch (error) {
               console.error('consume failed', error);
