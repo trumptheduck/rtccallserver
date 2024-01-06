@@ -32,9 +32,10 @@ class CallUser {
 
         this.consumerTransport = null;
         this.producerTransport = null;
-        this.consumerParams = null;
-        this.producer = null;
-        this.consumer = null;
+        this.videoProducer = null;
+        this.audioProducer = null;
+        this.videoConsumer = null;
+        this.audioConsumer = null;
         this.callProtocol = CallProtocol.PEERS;
 
         if (socket) {
@@ -300,8 +301,8 @@ class CallUser {
 
             this.consumerTransport = null;
             this.producerTransport = null;
-            this.consumerParams = null;
-            this.producer = null;
+            this.audioConsumer = null;
+            this.videoConsumer = null;
             this.consumer = null;
             this.callProtocol = CallProtocol.PEERS;
 

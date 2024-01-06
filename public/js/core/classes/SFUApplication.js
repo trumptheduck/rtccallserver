@@ -25,17 +25,18 @@ class SFUApplication {
     }
 
     publish = async (transport, stream) => {  
-      const track = stream.getVideoTracks()[0];
-      const params = { track };
-      params.encodings = [
+      const videoTrack = stream.getVideoTracks()[0];
+      const audioTrack = stream.getAudioTracks()[0];
+      const encodings = [
         { maxBitrate: 100000 },
         { maxBitrate: 300000 },
         { maxBitrate: 900000 },
       ];
-      params.codecOptions = {
+      const codecOptions = {
         videoGoogleStartBitrate : 1000
       };
-      return await transport.produce(params);
+      await transport.produce({track: videoTrack, encodings, codecOptions});
+      await transport.produce({track: audioTrack});
     }
       
     getUserMedia = async () => {
@@ -62,8 +63,6 @@ class SFUApplication {
         rtpParameters,
         codecOptions,
       });
-      const stream = new MediaStream();
-      stream.addTrack(consumer.track);
-      return stream;
+      return consumer.track;
     }
 }

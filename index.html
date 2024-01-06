@@ -105,14 +105,18 @@
           };
         }
 
-        setRemoteStream(stream) {
+        setRemoteStream(track, kind) {
           const remoteVideo = document.getElementById(
               CallElements.remoteVideo
           );
           if (remoteVideo) {
-            remoteVideo.srcObject = stream;
+            if (!this.remoteVideoStream) {
+              this.remoteVideoStream = new MediaStream();
+              remoteVideo.srcObject = this.remoteVideoStream;
+              this.callClient.markCallAsReady();
+            }
+            this.remoteVideoStream.addTrack(track);
           }
-          this.callClient.markCallAsReady();
         }
 
         loginWithToken = (token) => {
@@ -319,10 +323,6 @@
         //     app.registerFunctions();
         //     })         
         // });
-
-        if (ACCEPT_INCOMING && ACCEPT_INCOMING == 1) {
-          app.callClient.acceptNextCall();
-        }
         app.initMediaObjects().then(() => {
           app.getCallUser(USER_ID).then(caller => {
             app.ui.caller.userName.innerText = caller.userName;
@@ -349,7 +349,10 @@
                           );
                         });
                       }
-                    } 
+                    } else if (ACCEPT_INCOMING && ACCEPT_INCOMING == 1) {
+                      app.callClient.acceptNextCall();
+                      app.callClient.acceptCall();
+                    }
                   });
                 });
             });

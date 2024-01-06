@@ -16,6 +16,8 @@ class CallClient {
         this.sendTransport = null;
         this.recvTransport = null;
 
+        this.resumeEventStack = new Set();
+
         this.registerEvents();
     }
 
@@ -67,14 +69,6 @@ class CallClient {
         if (this.incomingCallAccepted) {
             this.acceptCall();
             this.incomingCallAccepted = false;
-        } else {
-            setTimeout(()=>{
-                if (confirm("You have an incoming call. Do you want to accept?")) {
-                    this.acceptCall();
-                } else {
-                    this.rejectCall();
-                }
-            });
         }
     }
 
@@ -122,6 +116,7 @@ class CallClient {
     onCallEnded = () => {
         this.callState = CallState.ENDED;
         this.activePayload = null;
+        this.app.remoteVideoStream = null;
         this.stopKeepalive();
         this.app.resetCall();
     }
@@ -255,11 +250,7 @@ class CallClient {
                 default: return;
             }
         });
-        this.app.sfu.publish(this.sendTransport, this.app.localVideoStream);
-    }
 
-    onNewProducer = (data) => {
-        let userId = data.id;
         this.socket.emit(SocketEvents.SFU_CTRANSPORT_CREATE);
         this.socket.once(SocketEvents.SFU_CTRANSPORT_CREATED, async (data) => {
             let {params} = data;
@@ -279,7 +270,7 @@ class CallClient {
                     break;
             
                   case 'connected':
-                    await this.socket.emit(SocketEvents.SFU_RESUME);
+                    this.resume('connected');
                     break;
             
                   case 'failed':
@@ -289,13 +280,33 @@ class CallClient {
                   default: return;
                 }
             });
-            const rtpCapabilities = this.app.sfu.device.rtpCapabilities;
-            this.socket.emit(SocketEvents.SFU_CONSUME, { rtpCapabilities, userId });
-            this.socket.once(SocketEvents.SFU_CONSUMING, async (params) => {
-                let remoteStream = await this.app.sfu.subscribe(this.recvTransport, params);
-                this.app.setRemoteStream(remoteStream);
-            })
         })
+            
+        this.app.sfu.publish(this.sendTransport, this.app.localVideoStream);
+    }
+
+    onNewProducer = (data) => {
+        let userId = data.id;
+        let kind = data.kind;
+        const rtpCapabilities = this.app.sfu.device.rtpCapabilities;
+        this.socket.emit(SocketEvents.SFU_CONSUME, { rtpCapabilities, userId, kind });
+        this.socket.once(SocketEvents.SFU_CONSUMING, async (params) => {
+            let track = await this.app.sfu.subscribe(this.recvTransport, params);
+            this.resume(kind);
+            this.app.setRemoteStream(track);
+        })
+    }
+
+    resume = (event) => {
+        this.resumeEventStack.add(event);
+        console.log(this.resumeEventStack, event);
+        if (this.resumeEventStack.has("audio")
+            &&this.resumeEventStack.has("video")
+            &&this.resumeEventStack.has("connected")
+            ) {
+            this.resumeEventStack.clear();
+            this.socket.emit(SocketEvents.SFU_RESUME);
+        }
     }
 
     acceptNextCall = () => {

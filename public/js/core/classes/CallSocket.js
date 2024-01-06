@@ -194,9 +194,14 @@ class CallSocket {
     produce = async (data) => {
         try {
             const {kind, rtpParameters} = data;
-            this.user.producer = await this.user.producerTransport.produce({ kind, rtpParameters });
-            this.socket.emit(SocketEvents.SFU_PRODUCING, { id: this.user.producer.id });
-            this.roomEmit(SocketEvents.SFU_NEW_PRODUCER, { id: this.user.id })
+            let producer = await this.user.producerTransport.produce({ kind, rtpParameters });
+            if (kind == "video") {
+                this.user.videoProducer = producer;
+            } else {
+                this.user.audioProducer = producer;
+            }
+            this.socket.emit(SocketEvents.SFU_PRODUCING, { id: producer.id });
+            this.roomEmit(SocketEvents.SFU_NEW_PRODUCER, { id: this.user.id, kind: kind })
         } catch (err) {
             this.logError("produce")
         }
@@ -204,14 +209,18 @@ class CallSocket {
 
     consume = async (data) => {
         try {
-            const {rtpCapabilities, userId} = data
+            const {rtpCapabilities, userId, kind} = data
             this.log(data);
             const _user = this.callServer.getUser(userId)
+            let producer = kind == "video" ? _user.videoProducer : _user.audioProducer;
             if (_user) {
-                const {consumer, params} = await this.sfuService.createConsumer(_user.producer, this.user.consumerTransport, rtpCapabilities);
-                this.user.consumerParams = params;
-                this.user.consumer = consumer;
-                this.socket.emit(SocketEvents.SFU_CONSUMING, this.user.consumerParams);
+                const {consumer, params} = await this.sfuService.createConsumer(producer, this.user.consumerTransport, rtpCapabilities);
+                if (kind == "video") {
+                    this.user.videoConsumer = consumer;
+                } else {
+                    this.user.audioConsumer = consumer;
+                }
+                this.socket.emit(SocketEvents.SFU_CONSUMING, params);
             }
         } catch (err) {
             this.logError("consume")
@@ -220,7 +229,10 @@ class CallSocket {
 
     resume = async (data) => {
         try {
-            await this.user.consumer.resume();
+            if (this.user.videoConsumer)
+                await this.user.videoConsumer.resume();
+            if (this.user.audioConsumer)
+                await this.user.audioConsumer.resume();
         } catch (err) {
             this.logError("resume")
         }
