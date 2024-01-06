@@ -289,6 +289,12 @@ class CallUser {
             if (this.consumer) {
                 this.sfuService.removeConsumer(this.consumer.id);
             }
+            if (this.producerTransport) {
+                this.producerTransport.close();
+            }
+            if (this.consumerTransport) {
+                this.consumerTransport.close();
+            }
 
             this.room = null;
     
