@@ -20,7 +20,7 @@ class CallClient {
         this.sendTransport = null;
         this.recvTransport = null;
 
-        this.resumeEventStack = new Set();
+        this.isReadyToConsume = false;
 
         this.registerEvents();
     }
@@ -259,6 +259,7 @@ class CallClient {
         this.socket.once(SocketEvents.SFU_CTRANSPORT_CREATED, async (data) => {
             let {params} = data;
             this.recvTransport = await this.app.sfu.createRecvTransport(params);
+            this.isReadyToConsume = true;
             this.recvTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
                 console.log("recvTransportConnected");
                 this.socket.emit(SocketEvents.SFU_CTRANSPORT_CONNECT, {
@@ -288,17 +289,17 @@ class CallClient {
         this.app.sfu.publish(this.sendTransport, this.app.localVideoStream);
     }
 
-    onNewProducer = (data) => {
+    onNewProducer = async (data) => {
+        while (!this.isReadyToConsume) {
+            await sleep(100);
+            console.log("waiting for transport");
+        }
         let userId = data.id;
         let kind = data.kind;
         const rtpCapabilities = this.app.sfu.device.rtpCapabilities;
         this.socket.emit(SocketEvents.SFU_CONSUME, { rtpCapabilities, userId, kind });
         this.socket.once(SocketEvents.SFU_CONSUMING, async (params) => {
             let track = await this.app.sfu.subscribe(this.recvTransport, params);
-            while (this.recvTransport?.connectionState !== 'connected') {
-                console.log(this.recvTransport?.connectionState);
-                await sleep(100);
-            }
             this.socket.emit(SocketEvents.SFU_RESUME, kind);
             this.app.setRemoteStream(track);
         })

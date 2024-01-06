@@ -1,4 +1,3 @@
-try {const CallProtocol = require("../../common/constants/CallProtocol");} catch (err) {}
 try {const CallType = require("../../common/constants/CallType");} catch (err) {}
 
 class CallPayload {
@@ -13,7 +12,7 @@ class CallPayload {
         this.calleeName = config.calleeName?String(config.calleeName):"";
         this.calleeAvatar = config.calleeAvatar?String(config.calleeAvatar):"";
         this.callType = config.callType?config.callType: CallType.NONE;
-        this.callProtocol = config.callProtocol?config.callProtocol: CallProtocol.PEERS
+        this.callProtocol = config.callProtocol?config.callProtocol: "peers"
     }
 }
 
