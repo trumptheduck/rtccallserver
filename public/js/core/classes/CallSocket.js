@@ -214,7 +214,7 @@ class CallSocket {
             const _user = this.callServer.getUser(userId)
             let producer = kind == "video" ? _user.videoProducer : _user.audioProducer;
             if (_user) {
-                const {consumer, params} = await this.sfuService.createConsumer(producer, this.user.consumerTransport, rtpCapabilities);
+                const {consumer, params} = await this.sfuService.createConsumer(this.user.id, producer, this.user.consumerTransport, rtpCapabilities);
                 if (kind == "video") {
                     this.user.videoConsumer = consumer;
                 } else {

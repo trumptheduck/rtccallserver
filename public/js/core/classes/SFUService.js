@@ -97,7 +97,7 @@ class SFUService {
         }
     }
 
-    createConsumer = async (producer, transport, rtpCapabilities) => {
+    createConsumer = async (userId, producer, transport, rtpCapabilities) => {
         try {
             let _consumer;
             if (!this.router.canConsume({
@@ -121,7 +121,7 @@ class SFUService {
             if (_consumer.type === 'simulcast') {
               await _consumer.setPreferredLayers({ spatialLayer: 2, temporalLayer: 2 });
             }
-            this.consumers.set(_consumer.id, _consumer);
+            this.consumers.set(_consumer.id, {userId, consumer:_consumer});
             return {
                 params: {
                     producerId: producer.id,
@@ -140,7 +140,16 @@ class SFUService {
 
     removeConsumer(consumerId) {
         this.consumers.delete(consumerId);
-    }     
+    }
+    removeConsumerByUserId(userId) {
+        let keys = [];
+        this.consumers.forEach((v, k)=>{
+            if (v.userId == userId) {
+                keys.push(k);
+            }
+        });
+        keys.forEach(k => this.removeConsumer(k));
+    }
 }
 
 const _sfuServiceInstance = new SFUService();

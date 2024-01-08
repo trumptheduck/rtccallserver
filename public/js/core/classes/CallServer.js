@@ -57,8 +57,8 @@ class CallServer {
             socket.on(SocketEvents.SOCKET_DISCONNECTED, this.logoutHandler(socket));
             socket.on(SocketEvents.SERVICE_STATUS, (data, callback) => {
                 callback({
-                    sfuAvailable: !this.sfuService.isOverloaded,
-                    sfuLoad: this.sfuService.activeConsumers + "/" + this.sfuService.consumerLimit
+                    sfuAvailable: !this.sfu.isOverloaded,
+                    sfuLoad: this.sfu.activeConsumers + "/" + this.sfu.consumerLimit
                 })
             })
             socket.on("test:users", () => {
@@ -373,7 +373,7 @@ class CallServer {
             if (!_user) return res.status(400).json({msg: "Không có người dùng này!"});
             _user.confirmNotificationReceived();
             return res.status(200).json({msg: "Thành công"});
-        } catch (error) {
+        } catch (err) {
             this.logError("confirmNotificationEndpoint", err);
             return res.status(500).json({msg: "Internal server error"});
         }
@@ -382,12 +382,12 @@ class CallServer {
     getServiceStatusEndpoint = async (req, res) => {
         try {
             return res.status(200).json({
-                sfuAvailable: !this.sfuService.isOverloaded,
-                sfuLoad: this.sfuService.activeConsumers + "/" + this.sfuService.consumerLimit
+                sfuAvailable: !this.sfu.isOverloaded,
+                sfuLoad: this.sfu.activeConsumers + "/" + this.sfu.consumerLimit
             });
-        } catch (error) {
+        } catch (err) {
             this.logError("getServiceStatusEndpoint", err);
-            return res.status(500).json({msg: "getServiceStatusEndpoint"});
+            return res.status(500).json({msg: "Internal server error"});
         }
     }
 }

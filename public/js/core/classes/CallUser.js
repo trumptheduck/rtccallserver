@@ -286,9 +286,8 @@ class CallUser {
 
     resetCallInfo = () => {
         try {
-            if (this.consumer) {
-                this.sfuService.removeConsumer(this.consumer.id);
-            }
+            this.sfuService.removeConsumerByUserId(this.id);
+            
             if (this.producerTransport) {
                 this.producerTransport.close();
             }
