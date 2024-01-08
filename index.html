@@ -281,6 +281,7 @@
         const CALL_TYPE = URL_PARAMS.get("callType");
         const ACCEPT_INCOMING = URL_PARAMS.get("accept");
         const ACCESS_TOKEN = URL_PARAMS.get("token");
+        const CALL_PROTOCOL = URL_PARAMS.get("protocol");
 
         Application.instance = new Application();
         let app = Application.getInstance();
@@ -334,13 +335,22 @@
                     if (CALLEE_ID) {
                       console.log(CALLEE_ID);
                       if (data.serviceStatus.sfuAvailable) {
-                        app.getCallUser(CALLEE_ID).then(callee => {
-                          app.callClient.createCall(
-                            callee,
-                            CALL_TYPE ? CALL_TYPE : CallType.VIDEO,
-                            CallProtocol.SFU
-                          );
-                        });
+                        if (CALL_PROTOCOL == "peers") {
+                          app.getCallUser(CALLEE_ID).then(callee => {
+                            app.callClient.createCall(
+                              callee,
+                              CALL_TYPE ? CALL_TYPE : CallType.VIDEO
+                            );
+                          });
+                        } else {
+                          app.getCallUser(CALLEE_ID).then(callee => {
+                            app.callClient.createCall(
+                              callee,
+                              CALL_TYPE ? CALL_TYPE : CallType.VIDEO,
+                              CallProtocol.SFU
+                            );
+                          });
+                        }
                       } else {
                         app.getCallUser(CALLEE_ID).then(callee => {
                           app.callClient.createCall(
