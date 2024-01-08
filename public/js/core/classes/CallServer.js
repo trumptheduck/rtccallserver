@@ -378,6 +378,18 @@ class CallServer {
             return res.status(500).json({msg: "Internal server error"});
         }
     }
+
+    getServiceStatusEndpoint = async (req, res) => {
+        try {
+            return res.status(200).json({
+                sfuAvailable: !this.sfuService.isOverloaded,
+                sfuLoad: this.sfuService.activeConsumers + "/" + this.sfuService.consumerLimit
+            });
+        } catch (error) {
+            this.logError("getServiceStatusEndpoint", err);
+            return res.status(500).json({msg: "getServiceStatusEndpoint"});
+        }
+    }
 }
 
 const _callServerInstance = new CallServer();
