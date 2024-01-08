@@ -305,25 +305,6 @@
             // app.ui.callee.background.src = payload.calleeAvatar;
           }
         })
-
-        // app.initMediaObjects().then(() => {
-        //   app.getCallUser(USER_ID).then(caller => {
-        //     app.ui.caller.userName.innerText = caller.userName;
-        //     app.loginWithId(caller);
-        //     if (CALLEE_ID) {
-        //       console.log(CALLEE_ID);
-        //       app.getCallUser(CALLEE_ID).then(callee => {
-        //         app.callClient.createCall(
-        //           callee,
-        //           CALL_TYPE ? CALL_TYPE : CallType.VIDEO
-        //         );
-        //       });
-        //     } else if (ACCEPT_INCOMING && ACCEPT_INCOMING == 1) {
-        //       app.callClient.acceptNextCall();
-        //     }
-        //     app.registerFunctions();
-        //     })         
-        // });
         app.initMediaObjects().then(() => {
           app.getCallUser(USER_ID).then(caller => {
             app.ui.caller.userName.innerText = caller.userName;
