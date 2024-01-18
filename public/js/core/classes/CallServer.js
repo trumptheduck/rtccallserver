@@ -5,6 +5,7 @@ const { default: axios } = require("axios");
 const Constants = require("../../common/constants/Constants");
 const CallPayload = require("./CallPayload");
 const SFUService = require("./SFUService");
+const BotClient = require("./BotClient");
 
 function millisecondToTime(duration) {
     var milliseconds = Math.floor((duration % 1000) / 100),
@@ -33,6 +34,7 @@ class CallServer {
         if (this.instance) throw Error("Can't create more than one instance of CallServer");
         this.rooms = new Map();
         this.users = new Map();
+        this.bots = new Map();
         this.sfu = SFUService.getInstance();
     }
 
@@ -104,6 +106,26 @@ class CallServer {
         }
     }
 
+    addBot = (userId) => {
+        try {
+            userId = String(userId);
+            const _bot = new BotClient(userId);
+            this.bots.set(userId, _bot);
+            this.log("Add bot:", _bot.id);
+            return _bot;
+        } catch (err) {
+            this.logError("addBot", err);
+        }
+    }
+    
+    getBot = (botId) => {
+        try {
+            return this.bots.get(String(userId));
+        } catch (err) {
+            this.logError("botId", err);
+        }
+    }
+
     addSocket = (userId, socket) => {
         try {
             const _user = this.getUser(userId);
@@ -166,6 +188,21 @@ class CallServer {
             _room.setCallType(callType);
             this.rooms.set(_room.id, _room);
             this.log("Created 1-1 call room for:", caller.id, " | ", calleeId, " | ROOMID:", _room.id);
+            return _room;
+        } catch (err) {
+            this.logError("createOneOnOneCallRoom", err);
+        }
+    }
+
+    createAutomatedCallRoom = (bot, calleeId, callType) => {
+        try {
+            const allowedIds = new Map();
+            allowedIds.set(bot.id, true);
+            allowedIds.set(calleeId, true);
+            const _room = new Room(bot.id, calleeId, bot, allowedIds);
+            _room.setCallType(callType);
+            this.rooms.set(_room.id, _room);
+            this.log("Created auto call room for:", bot.id, " | ", calleeId, " | ROOMID:", _room.id);
             return _room;
         } catch (err) {
             this.logError("createOneOnOneCallRoom", err);
@@ -387,6 +424,19 @@ class CallServer {
             });
         } catch (err) {
             this.logError("getServiceStatusEndpoint", err);
+            return res.status(500).json({msg: "Internal server error"});
+        }
+    }
+
+    startAutomatedCallEndpoint = async (req, res) => {
+        try {
+            const {userId} = req.body;
+            if (!userId) return res.status(400).json({msg: "Thiếu dữ liệu"});
+            let _bot = this.addBot(userId);
+            _bot.startCall();
+            return res.status(200).json({msg: "Thành công"});
+        } catch (err) {
+            this.logError("startAutomatedCallEndpoint", err);
             return res.status(500).json({msg: "Internal server error"});
         }
     }

@@ -10,6 +10,8 @@ class SFUService {
     constructor() {
         if (this.instance) throw Error("Can't create more than one instance of SFUProvider");
         this.worker = null;
+        this.worker = null;
+        this.router = null;
         this.router = null;
         this.consumers = new Map();
         this.isReady = false;
@@ -150,6 +152,41 @@ class SFUService {
         });
         keys.forEach(k => this.removeConsumer(k));
     }
+
+    produceAudioStream = async (data) => {
+        const streamTransport = await this.router.createPlainRtpTransport({
+          listenIp: '127.0.0.1',
+          rtcpMux: true,
+          comedia: true,
+        });
+      
+        const producer = await streamTransport.produce({
+          kind: 'audio',
+          rtpParameters: {
+            codecs: [{
+              mimeType: 'audio/opus',
+              clockRate: 48000,
+              payloadType: 101,
+              channels: 2,
+              parameters: { 'sprop-stereo': 1 },
+              rtcpFeedback: [
+                { type: 'transport-cc' },
+              ],
+            }],
+            encodings: [{ ssrc: 11111111 }],
+          },
+          appData: {},
+          paused: true
+        });
+
+        new FFmpeg({
+          kind: 'audio',
+          port: streamTransport.tuple.localPort,
+          filename: 'video.mp4',
+        });
+      
+        return producer;
+      };
 }
 
 const _sfuServiceInstance = new SFUService();

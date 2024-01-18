@@ -4,6 +4,7 @@ const CallState = require("../../common/constants/CallState");
 class Room {
     constructor(callerId, calleeId, host, allowedIds) {
         this.users = new Map();
+        this.bots = new Map();
         this.host = host;
         this.allowedIds = allowedIds;
         this.id = callerId;
@@ -58,6 +59,10 @@ class Room {
         } catch (err) {
             this.logError("join", err);
         }
+    }
+
+    joinAsBot = (bot) => {
+        this.bots.set(bot.id, bot);
     }
 
     leave = (userId) => {
@@ -120,6 +125,9 @@ class Room {
                 user.onCallAccepted();
                 this.callServer.cancelCallNotification(uid);
             })
+            this.bots.forEach((bot, id) => {
+                bot.onCallAccepted();
+            })
         } catch (err) {
             this.logError("onCallAccepted", err);
         }
@@ -132,6 +140,9 @@ class Room {
             this.users.forEach((user, uid) => {
                 user.onCallRejected();
             });
+            this.bots.forEach((bot, id) => {
+                bot.onCallRejected();
+            })
         } catch (err) {
             this.logError("onCallRejected", err);
         }
@@ -153,6 +164,9 @@ class Room {
             this.users.forEach((user, uid) => {
                 user.onCallTimedOut();
             });
+            this.bots.forEach((bot, id) => {
+                bot.onCallTimedOut();
+            })
         } catch (err) {
             this.logError("onCallTimedOut", err);
         }
@@ -166,6 +180,9 @@ class Room {
             this.log("Call time", this.callStart - this.callEnd);
             this.users.forEach((user, uid) => {
                 user.onCallEnded();
+            })
+            this.bots.forEach((bot, id) => {
+                bot.onCallEnded();
             })
         } catch (err) {
             this.logError("onCallEnded", err);
@@ -184,6 +201,9 @@ class Room {
                 this.callState = CallState.CALLING;
                 this.users.forEach((user, uid) => {
                     user.onCallReady();
+                })
+                this.bots.forEach((bot, id) => {
+                    bot.onCallReady();
                 })
             }
             this.log("Call ready");
